@@ -1,0 +1,121 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "campaigns_funnel",
+  "position": {
+    "x": 24,
+    "y": 200,
+    "z": 10000,
+    "width": 400,
+    "height": 240,
+    "tabOrder": 10000
+  },
+  "visual": {
+    "visualType": "funnel",
+    "drillFilterOtherVisuals": true,
+    "query": {
+      "queryState": {
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_email_event"
+                    }
+                  },
+                  "Property": "Emails Sent"
+                }
+              },
+              "queryRef": "fct_email_event.Emails Sent",
+              "nativeQueryRef": "Emails Sent",
+              "displayName": "Sent"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_email_event"
+                    }
+                  },
+                  "Property": "Emails Opened"
+                }
+              },
+              "queryRef": "fct_email_event.Emails Opened",
+              "nativeQueryRef": "Emails Opened",
+              "displayName": "Opened"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_email_event"
+                    }
+                  },
+                  "Property": "Emails Clicked"
+                }
+              },
+              "queryRef": "fct_email_event.Emails Clicked",
+              "nativeQueryRef": "Emails Clicked",
+              "displayName": "Clicked"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_coupon_redemption"
+                    }
+                  },
+                  "Property": "Redemptions"
+                }
+              },
+              "queryRef": "fct_coupon_redemption.Redemptions",
+              "nativeQueryRef": "Redemptions",
+              "displayName": "Redeemed"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "labels": [
+        {
+          "properties": {
+            "fontFamily": {
+              "expr": {
+                "Literal": {
+                  "Value": "'''IBM Plex Mono'', Consolas, monospace'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'From Email to Coupon'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

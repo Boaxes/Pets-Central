@@ -1,0 +1,1 @@
+<nav class="tabs">{% for t in tabs %}<a href="?tab={{ t.key }}" {% if t.key == tab.key %}class="current"{% endif %}>{{ t.label }}</a>{% endfor %}</nav>

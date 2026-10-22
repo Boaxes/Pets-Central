@@ -1,0 +1,34 @@
+<section class="answer">
+    <p class="asked">{{ question.text }}</p>
+    <p class="muted small">Asked by {{ question.user.get_full_name|default:question.user.username|default:"-" }}, {{ question.asked_at|date:"M j, Y, g:i a" }}</p>
+    {% if question.outcome == 'answered' %}
+    <div class="answer-body">{{ answer_html|safe }}</div>
+    {% else %}
+    <p class="message error">{{ question.answer|default:"The assistant couldn't answer this question." }}</p>
+    {% endif %}
+
+    {% if citations %}
+    <h3>Policy sections cited</h3>
+    <ol class="citations">
+        {% for c in citations %}<li><a href="{{ c.url }}">{{ c.title }}</a> (v{{ c.version }}), {{ c.heading }}</li>{% endfor %}
+    </ol>
+    {% endif %}
+
+    {% if calls %}
+    <details class="steps">
+        <summary>How this was answered: {{ calls|length }} step{{ calls|length|pluralize }}</summary>
+        {% for call in calls %}
+        <div class="step">
+            <p><strong>{{ call.step }}. {{ call.get_tool_display }}</strong>
+                {% if call.tool == 'run_sql' %}&middot; {{ call.input.purpose }}{% else %}&middot; "{{ call.input.query }}"{% endif %}
+                <span class="muted">&middot;
+                {% if call.ok %}{{ call.row_count }} {% if call.tool == 'run_sql' %}row{{ call.row_count|pluralize }}{% if call.result.truncated %} (first 200){% endif %}{% else %}section{{ call.row_count|pluralize }}{% endif %}{% else %}error{% endif %}
+                &middot; {{ call.duration_ms }} ms</span></p>
+            {% if call.tool == 'run_sql' %}<pre>{{ call.input.sql }}</pre>{% endif %}
+            {% if call.error %}<p class="muted">{{ call.error }}</p>{% endif %}
+        </div>
+        {% endfor %}
+    </details>
+    {% endif %}
+    <p class="muted small">{{ question.model }} &middot; {{ question.duration_ms|floatformat:"0" }} ms &middot; {{ question.input_tokens|add:question.output_tokens }} tokens{% if not question.policy_search %} &middot; policy search off{% endif %}</p>
+</section>

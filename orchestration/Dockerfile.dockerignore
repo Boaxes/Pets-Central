@@ -1,0 +1,15 @@
+# The Dagster image: the loaders, dbt and the definitions only.
+**/.venv
+**/__pycache__
+.git
+.github
+.env
+data/
+docs/
+infra/
+loyalty_api/
+scripts/
+transform/target/
+transform/dbt_packages/
+transform/logs/
+orchestration/tests/

@@ -1,0 +1,114 @@
+/// One row per coupon redemption reported by the loyalty vendor, from MARTS.FCT_COUPON_REDEMPTIONS.
+table fct_coupon_redemption
+	lineageTag: fae12bba-ab32-4f7e-887c-3d3791ddd667
+
+	/// Coupon redemptions, voided ones left out.
+	measure Redemptions = CALCULATE ( COUNTROWS ( fct_coupon_redemption ), fct_coupon_redemption[is_voided] = FALSE () )
+		formatString: #,0
+		displayFolder: Campaigns
+		lineageTag: a90d75f4-e5cb-40ed-a814-6cc27dcb9245
+
+	measure 'Discount Given' = CALCULATE ( SUM ( fct_coupon_redemption[discount_amount] ), fct_coupon_redemption[is_voided] = FALSE () )
+		formatString: \$#,0
+		displayFolder: Campaigns
+		lineageTag: 42915e68-9312-41ae-bb8e-98a0b1cdcbd3
+
+	measure 'Redeemed Order Value' = CALCULATE ( SUM ( fct_coupon_redemption[order_total] ), fct_coupon_redemption[is_voided] = FALSE () )
+		formatString: \$#,0
+		displayFolder: Campaigns
+		lineageTag: 229c144b-e2cc-471e-b65d-718db8ea95b8
+
+	measure 'Redemptions (Complete Months)' = IF ( EOMONTH ( MAX ( dim_date[date] ), 0 ) <= [Last Sale Date], [Redemptions] )
+		formatString: #,0
+		displayFolder: Campaigns
+		lineageTag: 1e4bd7e4-3d34-45f6-9dad-f880a02cc6d8
+
+	column redemption_id
+		dataType: string
+		isHidden
+		lineageTag: ea8a5f98-0c01-457f-8d9a-e023f4e58579
+		summarizeBy: none
+		sourceColumn: redemption_id
+
+	column campaign_id
+		dataType: double
+		isHidden
+		lineageTag: 088ce54d-a5f3-4ddc-9f69-6a58fbaeeecc
+		summarizeBy: none
+		sourceColumn: campaign_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column store_id
+		dataType: double
+		isHidden
+		lineageTag: 575549ec-47a8-44a4-9e3e-96f2f7febd9d
+		summarizeBy: none
+		sourceColumn: store_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column person_id
+		dataType: double
+		isHidden
+		lineageTag: 13855cec-4a98-4eb4-b143-a28fc07872d7
+		summarizeBy: none
+		sourceColumn: person_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column redeemed_date
+		dataType: dateTime
+		isHidden
+		formatString: Long Date
+		lineageTag: adaeaba2-2780-4575-b1e0-9578bdf0665a
+		summarizeBy: none
+		sourceColumn: redeemed_date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_total
+		dataType: double
+		isHidden
+		lineageTag: fe1c1938-5bf2-4bb9-b731-746038f9a85f
+		summarizeBy: sum
+		sourceColumn: order_total
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column discount_amount
+		dataType: double
+		isHidden
+		lineageTag: ff4a776a-d3f5-48d6-af69-051f357027a3
+		summarizeBy: sum
+		sourceColumn: discount_amount
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column by_member
+		dataType: boolean
+		lineageTag: e203e25a-36a3-4c42-80c9-695c6f2fb1a7
+		sourceColumn: by_member
+
+	column is_voided
+		dataType: boolean
+		lineageTag: 607925aa-5cae-4512-8c15-890a35133147
+		sourceColumn: is_voided
+
+	partition fct_coupon_redemption = m
+		mode: import
+		source =
+				let
+				    Source = marts{[Name = "FCT_COUPON_REDEMPTIONS", Kind = "Table"]}[Data],
+				    Kept = Table.SelectColumns(Source, {"REDEMPTION_ID", "CAMPAIGN_ID", "STORE_ID", "PERSON_ID", "REDEEMED_DATE", "ORDER_TOTAL", "DISCOUNT_AMOUNT", "BY_MEMBER", "IS_VOIDED"}),
+				    Lower = Table.TransformColumnNames(Kept, Text.Lower),
+				    Keys = Table.ReplaceValue(Lower, null, -1, Replacer.ReplaceValue, {"person_id"})
+				in
+				    Keys
+

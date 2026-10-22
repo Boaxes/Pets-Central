@@ -1,0 +1,12 @@
+{% if chart %}
+<svg class="chart" viewBox="0 0 {{ chart.width }} {{ chart.height }}" width="100%" role="img" aria-label="{{ title }}">
+    {% for bar in chart.bars %}
+    <g>
+        <title>{{ bar.label }}: {{ bar.value_text }}</title>
+        <text x="{{ chart.label_x }}" y="{{ bar.text_y }}" text-anchor="end" class="label">{{ bar.label }}</text>
+        <rect x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.width|floatformat:1 }}" height="{{ bar.height }}" class="bar"/>
+        <text x="{{ bar.text_x|floatformat:1 }}" y="{{ bar.text_y }}" class="label">{{ bar.value_text }}</text>
+    </g>
+    {% endfor %}
+</svg>
+{% endif %}

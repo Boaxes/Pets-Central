@@ -1,0 +1,71 @@
+/// One row per person (duplicate customer records merged), with loyalty membership if matched, from MARTS.DIM_CUSTOMERS. Row -1 is Guest: sales with no customer record.
+table dim_customer
+	lineageTag: a59fd4fe-4d3c-4b97-917f-788606e6a4ac
+
+	column person_id
+		dataType: double
+		isHidden
+		isKey
+		lineageTag: de9c80a5-75ac-4d32-9ef6-394bd656c2f4
+		summarizeBy: none
+		sourceColumn: person_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column customer_type
+		dataType: string
+		lineageTag: ef4a424a-800e-44ab-927c-599ba7a6d550
+		sourceColumn: customer_type
+
+	column membership
+		dataType: string
+		lineageTag: 4933b9e9-457a-4ba8-a055-de415d44667b
+		sourceColumn: membership
+
+	column loyalty_tier
+		dataType: string
+		lineageTag: 87065b8c-4ac0-4e80-a9be-e38d12965727
+		sourceColumn: loyalty_tier
+
+	column match_method
+		dataType: string
+		lineageTag: ace55443-c498-43b8-8025-8ef2e7ba2d29
+		sourceColumn: match_method
+
+	column purchases
+		dataType: int64
+		formatString: 0
+		lineageTag: 8b937a97-7346-4246-acc7-58cbc689bc83
+		summarizeBy: none
+		sourceColumn: purchases
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column lifetime_spend
+		dataType: double
+		formatString: \$#,0.00
+		lineageTag: ee9300a3-9953-432f-b3e9-333e94692924
+		summarizeBy: none
+		sourceColumn: lifetime_spend
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_customer = m
+		mode: import
+		source =
+				let
+				    Source = marts{[Name = "DIM_CUSTOMERS", Kind = "Table"]}[Data],
+				    Kept = Table.SelectColumns(Source, {"PERSON_ID", "CUSTOMER_TYPE", "IS_LOYALTY_MEMBER", "LOYALTY_TIER", "LOYALTY_MATCH_METHOD", "PURCHASES", "LIFETIME_NET_AMOUNT"}),
+				    Lower = Table.TransformColumnNames(Kept, Text.Lower),
+				    Typed = Table.TransformColumnTypes(Lower, {{"purchases", Int64.Type}}),
+				    Membership = Table.AddColumn(Typed, "membership", each if [is_loyalty_member] then "Member" else "Not a Member", type text),
+				    Labels = Table.TransformColumns(Membership, {{"customer_type", each Text.Proper(_), type text}, {"loyalty_tier", each if _ = null then "None" else Text.Proper(_), type text}, {"loyalty_match_method", each if _ = null then "Not Matched" else Text.Proper(Text.Replace(_, "_", " ")), type text}}),
+				    Renamed = Table.RenameColumns(Labels, {{"loyalty_match_method", "match_method"}, {"lifetime_net_amount", "lifetime_spend"}}),
+				    Final = Table.SelectColumns(Renamed, {"person_id", "customer_type", "membership", "loyalty_tier", "match_method", "purchases", "lifetime_spend"}),
+				    Guest = #table(type table [person_id = Int64.Type, customer_type = text, membership = text, loyalty_tier = text, match_method = text, purchases = Int64.Type, lifetime_spend = number], {{-1, "Guest", "Guest", "None", "Not Matched", null, null}}),
+				    WithGuest = Table.Combine({Final, Guest})
+				in
+				    WithGuest
+

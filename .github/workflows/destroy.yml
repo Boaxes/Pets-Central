@@ -1,0 +1,64 @@
+# Destroys one stack, by hand: Actions > Destroy > Run workflow, naming the stack and typing its name again. Used once
+# for production on Azure after its screenshots, and once for Snowflake after the analytics screenshots. Take the
+# stack out of deploy.yml and ci.yml first, or the next merge re-creates it.
+
+name: Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: Stack to destroy
+        type: choice
+        options: [azure, snowflake]
+      confirm:
+        description: Type the stack's name again
+        required: true
+
+concurrency:
+  group: deploy # Never alongside a deploy.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # Signs in to Azure with OIDC; no cloud password exists.
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  destroy:
+    name: Terraform destroy
+    if: inputs.confirm == inputs.stack
+    runs-on: ubuntu-latest
+    env:
+      ARM_USE_OIDC: 'true'
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_organization_name: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}
+      TF_VAR_account_name: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
+      TF_VAR_analyst_user: ${{ vars.SNOWFLAKE_ANALYST_USER }}
+      TF_VAR_snowflake_account: ${{ vars.SNOWFLAKE_ACCOUNT }}
+      TF_VAR_owner_ip: ${{ vars.OWNER_IP }}
+      TF_VAR_image_tag: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - name: Write Terraform's Snowflake key
+        if: inputs.stack == 'snowflake'
+        env:
+          KEY: ${{ secrets.SNOWFLAKE_TERRAFORM_PRIVATE_KEY }}
+        run: |
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/terraform.p8"
+          echo "TF_VAR_terraform_private_key_path=$RUNNER_TEMP/terraform.p8" >> "$GITHUB_ENV"
+      - name: Destroy ${{ inputs.stack }}
+        working-directory: infra/${{ inputs.stack }}
+        run: |
+          terraform init -input=false -backend-config=../backend.hcl -backend-config=key=${{ inputs.stack }}.tfstate
+          terraform destroy -input=false -no-color -auto-approve | tee destroy.txt
+          { echo "### ${{ inputs.stack }}: terraform destroy"; echo '```'; tail -n 60 destroy.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

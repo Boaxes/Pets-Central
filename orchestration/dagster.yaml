@@ -1,0 +1,15 @@
+# Dagster's instance settings in the deployed image (DAGSTER_HOME=/app/dagster_home). Run history, schedules and
+# event logs live in their own Postgres database, so they survive restarts. Local `dagster dev` uses its own SQLite.
+storage:
+  postgres:
+    postgres_db:
+      hostname: {env: DAGSTER_PG_HOST}
+      db_name: {env: DAGSTER_PG_DB}
+      username: {env: DAGSTER_PG_USERNAME}
+      password: {env: DAGSTER_PG_PASSWORD}
+      port: 5432
+      params:
+        sslmode: require
+
+telemetry:
+  enabled: false

@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars (git-ignored) and fill in from the SELECT at the end of bootstrap.sql.
+organization_name = "ORGNAME"
+account_name      = "ACCOUNTNAME"
+analyst_user      = "YOUR_USER"

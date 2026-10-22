@@ -1,0 +1,26 @@
+[project]
+name = "pets-central"
+version = "0.1.0"
+description = "Pets Central: store operations system, loyalty API and data pipeline for a national pet store chain"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "anthropic>=1.15.0",
+    "django>=6.1.2",
+    "faker>=40.43.0",
+    "gunicorn>=26.2.0",
+    "httpx>=0.28.1",
+    "markdown>=3.11.1",
+    "numpy>=2.5.4",
+    "pandas>=3.0.6",
+    "psycopg[binary]>=3.3.6",
+    "python-dotenv>=1.2.4",
+    "snowflake-connector-python>=5.0.0",
+    "tzdata>=2026.5",
+    "whitenoise>=6.12.0",
+]
+
+[dependency-groups]
+dev = [
+    "playwright>=1.64.0",
+]

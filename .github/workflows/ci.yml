@@ -1,0 +1,182 @@
+# Every pull request: the tests of each project, dbt built into the pull request's own schemas, both images built,
+# and Terraform checked. Merging to main is the approval to deploy (deploy.yml).
+
+name: CI
+
+on:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Named explicitly, so every step runs with `set -eo pipefail`: a failing command piped into `tee` fails the step.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  django:
+    name: Django tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # With pgvector, as in production.
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Throwaway values for a database that only lives for this job.
+      DJANGO_SECRET_KEY: ci-only
+      POSTGRES_DB: pets_central
+      POSTGRES_USER: pets_app
+      POSTGRES_PASSWORD: ci-only
+      POSTGRES_HOST: localhost
+      ASSISTANT_DB_USER: pets_assistant
+      ASSISTANT_DB_PASSWORD: ci-only
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: Create the app and assistant logins
+        env:
+          PGPASSWORD: postgres
+        run: >
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1
+          -v app_user=$POSTGRES_USER -v app_password=$POSTGRES_PASSWORD -v app_db=$POSTGRES_DB
+          -v assistant_user=$ASSISTANT_DB_USER -v assistant_password=$ASSISTANT_DB_PASSWORD
+          -f scripts/setup_local_db.sql
+      - run: uv sync --frozen
+      - run: uv run python manage.py test
+
+  loyalty-api:
+    name: Rewards API tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: loyalty_api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run pytest
+
+  dbt:
+    name: dbt build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: transform
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ vars.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_DBT_USER: PETS_DBT_SVC
+      SNOWFLAKE_DBT_ROLE: PETS_TRANSFORMER
+      SNOWFLAKE_WAREHOUSE: PETS_WH
+      SNOWFLAKE_DATABASE: PETS_CENTRAL_DEV
+      # This pull request's own schemas (PR_12_STAGING, PR_12_MARTS...), dropped at the end.
+      DBT_SCHEMA_PREFIX: PR_${{ github.event.pull_request.number }}_
+      PETS_EVALUATION: 'false'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - name: Write dbt's key
+        env:
+          KEY: ${{ secrets.SNOWFLAKE_DBT_PRIVATE_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then echo "::error::The SNOWFLAKE_DBT_PRIVATE_KEY secret is not set."; exit 1; fi
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/dbt.p8"
+          echo "SNOWFLAKE_DBT_PRIVATE_KEY_PATH=$RUNNER_TEMP/dbt.p8" >> "$GITHUB_ENV"
+      - run: uv run dbt deps
+      - run: uv run dbt build
+      - name: Drop this pull request's schemas
+        if: always()
+        run: uv run dbt run-operation drop_prefixed_schemas
+
+  orchestration:
+    name: Dagster definitions
+    runs-on: ubuntu-latest
+    env:
+      PETS_EVALUATION: 'false'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --project orchestration
+      - name: Parse the dbt project (no connection needed)
+        working-directory: transform
+        env:
+          SNOWFLAKE_ACCOUNT: ci
+          SNOWFLAKE_DBT_USER: ci
+          SNOWFLAKE_DBT_ROLE: ci
+          SNOWFLAKE_DBT_PRIVATE_KEY_PATH: ci
+          SNOWFLAKE_WAREHOUSE: ci
+          SNOWFLAKE_DATABASE: ci
+        run: uv run --project ../orchestration dbt deps && uv run --project ../orchestration dbt parse
+      - run: uv run --project orchestration python -m pytest orchestration/tests
+
+  images:
+    name: Build images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Store app
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          cache-from: type=gha,scope=store
+          cache-to: type=gha,mode=max,scope=store
+      - name: Dagster
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: orchestration/Dockerfile
+          push: false
+          cache-from: type=gha,scope=dagster
+          cache-to: type=gha,mode=max,scope=dagster
+
+  terraform:
+    name: Terraform plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Signs in to Azure with OIDC, for the state; no cloud password exists.
+    env:
+      ARM_USE_OIDC: 'true'
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_organization_name: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}
+      TF_VAR_account_name: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
+      TF_VAR_analyst_user: ${{ vars.SNOWFLAKE_ANALYST_USER }}
+      TF_VAR_demo_api_key: ${{ secrets.LOYALTY_DEMO_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - run: terraform fmt -check -recursive infra
+      - name: Write Terraform's Snowflake key
+        env:
+          KEY: ${{ secrets.SNOWFLAKE_TERRAFORM_PRIVATE_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then echo "::error::The SNOWFLAKE_TERRAFORM_PRIVATE_KEY secret is not set."; exit 1; fi
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/terraform.p8"
+          echo "TF_VAR_terraform_private_key_path=$RUNNER_TEMP/terraform.p8" >> "$GITHUB_ENV"
+      # infra/bootstrap is applied by the owner only: it manages the subscription-wide pieces CI can't touch.
+      - name: Plan the Snowflake and vendor stacks
+        working-directory: infra
+        run: |
+          for stack in snowflake vendor; do
+            terraform -chdir=$stack init -input=false -backend-config=../backend.hcl -backend-config=key=$stack.tfstate
+            terraform -chdir=$stack plan -input=false -no-color -lock=false | tee $stack/plan.txt
+            { echo "### $stack: terraform plan"; echo '```'; cat $stack/plan.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          done

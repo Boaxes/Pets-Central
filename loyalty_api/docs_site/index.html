@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pawprint Loyalty API</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui.css">
+  <style>body { margin: 0; background: #fff; }</style>
+</head>
+<body>
+  <div id="docs"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+  <script>
+    // "Try It Out" makes real calls with the public demo key, which the spec carries and which is filled in here.
+    const ui = SwaggerUIBundle({
+      url: 'openapi.json', dom_id: '#docs', supportedSubmitMethods: ['get'], defaultModelsExpandDepth: 0,
+      onComplete: () => {
+        const key = ui.specSelectors.specJson().get('x-demo-key');
+        if (key) ui.preauthorizeApiKey('ApiKey', key);
+      },
+    });
+  </script>
+</body>
+</html>

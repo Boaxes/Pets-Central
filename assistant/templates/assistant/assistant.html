@@ -1,0 +1,57 @@
+{% extends 'storefront/base.html' %}
+{% block title %}Store Assistant{% endblock %}
+{% block content %}
+<h1>Store Assistant</h1>
+<p class="subtitle">Ask about this store's sales, stock, animals, staff and customers{% if policy_search %}, and the company's policies{% endif %}. The assistant sees {{ request.store.store_code }}'s data only.</p>
+
+<div class="assistant-layout">
+<div>
+    {% if not ready %}<p class="message error">{{ not_ready }}</p>{% endif %}
+    {% if not policy_search %}
+    <p class="notice">Policy search isn't available in this environment, because the database doesn't have the pgvector
+        extension. Answers come from store data only. The policies are on the <a href="{% url 'policies' %}">Policies</a> page.</p>
+    {% endif %}
+
+    <form method="post" action="{% url 'assistant' %}" hx-post="{% url 'assistant' %}" hx-target="#answer"
+          hx-indicator="#working" hx-disabled-elt="find button" class="ask">
+        {% csrf_token %}
+        <p>
+            <label for="{{ form.question.id_for_label }}">{{ form.question.label }}</label>
+            <textarea name="question" id="{{ form.question.id_for_label }}" rows="3" maxlength="1000" required
+                      placeholder="For example: which categories sold best in September?">{{ form.question.value|default_if_none:'' }}</textarea>
+        </p>
+        <p class="toolbar">
+            <button {% if not ready %}disabled{% endif %}>Ask</button>
+            <span class="muted">{{ left_today }} question{{ left_today|pluralize }} left today.</span>
+            <span id="working" class="htmx-indicator muted">Working on it. Answers usually take 10 to 30 seconds.</span>
+        </p>
+    </form>
+
+    <form method="post" action="{% url 'assistant' %}" hx-post="{% url 'assistant' %}" hx-target="#answer"
+          hx-indicator="#working" hx-disabled-elt="find button" class="examples">
+        {% csrf_token %}
+        <span class="muted">Try:</span>
+        {% for example in examples %}<button class="secondary" name="question" value="{{ example }}" {% if not ready %}disabled{% endif %}>{{ example }}</button>{% endfor %}
+    </form>
+
+    <div id="answer">{% if question %}{% include 'assistant/_answer.html' %}{% endif %}</div>
+</div>
+
+<aside class="panel">
+    <h2>Recent questions here</h2>
+    <p class="muted small">Every question, and the queries run to answer it, is kept for review.</p>
+    {% if recent %}
+    <ul class="recent">
+        {% for q in recent %}
+        <li>
+            <a href="{% url 'assistant_question' q.pk %}">{{ q.text|truncatechars:110 }}</a>
+            <span class="muted small">{{ q.user.get_full_name|default:q.user.username|default:"-" }} &middot; {{ q.asked_at|date:"M j, g:i a" }}{% if q.outcome != 'answered' %} &middot; {{ q.get_outcome_display }}{% endif %}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">No questions yet.</p>
+    {% endif %}
+</aside>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+	valueFilterBehavior: independent
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation PBI_ProTooling = ["MCP-PBIModeling"]
+
+annotation PBI_QueryOrder = ["dim_date","dim_store","dim_product","dim_customer","dim_campaign","fct_sale_line","fct_return","fct_coupon_redemption","fct_email_event","marts"]
+
+ref table dim_date
+ref table dim_store
+ref table dim_product
+ref table dim_customer
+ref table dim_campaign
+ref table fct_sale_line
+ref table fct_return
+ref table fct_coupon_redemption
+ref table fct_email_event
+
+ref cultureInfo en-US
+

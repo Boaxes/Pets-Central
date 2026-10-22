@@ -1,0 +1,22 @@
+{% extends 'storefront/base.html' %}
+{% block title %}{{ page.title }}{% endblock %}
+{% block content %}
+<h1>{{ page.title }}</h1>
+{% include 'storefront/tabs/tab_links.html' %}
+{% if intro %}<p class="muted">{{ intro }}</p>{% endif %}
+
+{% if tab.key == 'browse' %}
+    {% include 'storefront/tabs/browse.html' %}
+{% elif tab.key == 'create' %}
+    {% include 'storefront/tabs/form.html' with submit=tab.label %}
+{% else %}
+    {% include 'storefront/tabs/picker.html' %}
+    {% if selected %}
+        <h2>{{ selected_label }}</h2>
+        {% if tab.key == 'delete' %}
+        <table class="keyvalue">{% for label, value in detail %}<tr><th>{{ label }}</th><td>{{ value|default:"" }}</td></tr>{% endfor %}</table>
+        {% endif %}
+        {% if tab.key == 'delete' %}{% include 'storefront/tabs/form.html' with submit=tab.label danger=True %}{% else %}{% include 'storefront/tabs/form.html' with submit=tab.label %}{% endif %}
+    {% endif %}
+{% endif %}
+{% endblock %}

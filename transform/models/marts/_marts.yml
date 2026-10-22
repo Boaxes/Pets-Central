@@ -1,0 +1,109 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: One row per day, 2015 through 2027.
+    columns:
+      - name: date_day
+        data_tests: [unique, not_null]
+
+  - name: dim_stores
+    description: Stores with their region, format and history, including the Critter Corner acquisition.
+    columns:
+      - name: store_id
+        data_tests: [unique, not_null]
+
+  - name: dim_products
+    description: Products with category, department, brand, species for live animals, and current price.
+    columns:
+      - name: product_id
+        data_tests: [unique, not_null]
+      - name: current_list_price
+        data_tests: [not_null]
+
+  - name: dim_campaigns
+    columns:
+      - name: campaign_id
+        data_tests: [unique, not_null]
+      - name: department_name
+        data_tests: [not_null]
+
+  - name: dim_customers
+    description: >
+      One row per person, with duplicate customer records merged, their loyalty membership if one was matched,
+      and their purchase history. Guests are not people; their sales have no person_id.
+    columns:
+      - name: person_id
+        data_tests: [unique, not_null]
+      - name: member_id
+        data_tests: [unique]
+      - name: customer_type
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['never purchased', 'one-time', 'repeat']}
+
+  - name: fct_sale_lines
+    description: One row per sale line, cancelled sales included. sale_date is the store's local date.
+    columns:
+      - name: sale_line_id
+        data_tests: [unique, not_null]
+      - name: store_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_stores'), field: store_id}
+      - name: product_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_products'), field: product_id}
+      - name: person_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_customers'), field: person_id}
+      - name: sale_date
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_date'), field: date_day}
+
+  - name: fct_sales
+    description: One row per sale.
+    columns:
+      - name: sale_id
+        data_tests: [unique, not_null]
+
+  - name: fct_returns
+    columns:
+      - name: return_line_id
+        data_tests: [unique, not_null]
+
+  - name: fct_points_transactions
+    columns:
+      - name: points_transaction_id
+        data_tests: [unique, not_null]
+      - name: store_id
+        data_tests: [not_null]
+
+  - name: fct_email_events
+    columns:
+      - name: email_event_id
+        data_tests: [unique, not_null]
+
+  - name: fct_coupon_redemptions
+    columns:
+      - name: redemption_id
+        data_tests: [unique, not_null]
+      - name: campaign_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('dim_campaigns'), field: campaign_id}
+
+  - name: fct_stock_levels
+    columns:
+      - name: stock_level_id
+        data_tests: [unique, not_null]
+
+  - name: campaign_performance
+    description: One row per campaign; see the model for what naive_lift does and doesn't measure.
+    columns:
+      - name: campaign_id
+        data_tests: [unique, not_null]

@@ -1,0 +1,32 @@
+{% load humanize %}
+<form method="get" action="{{ request.path }}" class="toolbar"
+      hx-get="{{ request.path }}" hx-target="#results" hx-select="#results" hx-swap="outerHTML" hx-push-url="true"
+      hx-trigger="submit, change from:select, input changed delay:300ms from:input[name=q]">
+    <input type="hidden" name="tab" value="{{ tab.key }}">
+    {% for name, f in filters.items %}
+    <select name="{{ name }}" aria-label="{{ f.label }}">
+        {% for value, text in f.choices %}<option value="{{ value }}" {% if value == f.value %}selected{% endif %}>{{ text }}</option>{% endfor %}
+    </select>
+    {% endfor %}
+    <input type="search" name="q" value="{{ q }}" placeholder="{{ page.search_hint|default:'Search' }}" aria-label="Search">
+    <select name="size" aria-label="Rows per page">
+        {% for s in sizes %}<option value="{{ s }}" {% if s == size %}selected{% endif %}>{{ s }} per page</option>{% endfor %}
+    </select>
+    <button>Search</button>
+</form>
+
+<div id="results" hx-boost="true" hx-target="#results" hx-select="#results" hx-swap="outerHTML">
+    <table class="wide">
+        <tr>{% for c in columns %}<th {% if c.numeric %}class="num"{% endif %}>{{ c.label }}</th>{% endfor %}</tr>
+        {% for row in rows %}
+        <tr>{% for value, numeric in row %}<td {% if numeric %}class="num"{% endif %}>{{ value }}</td>{% endfor %}</tr>
+        {% empty %}
+        <tr><td colspan="{{ columns|length }}">No records found.</td></tr>
+        {% endfor %}
+    </table>
+    <p class="pager">
+        {% if prev_url %}<a href="{{ prev_url }}">&laquo; Previous</a>{% else %}<span class="muted">&laquo; Previous</span>{% endif %}
+        <span>Page {{ current.number|intcomma }} of {{ paginator.num_pages|intcomma }} &middot; {{ paginator.count|intcomma }} records</span>
+        {% if next_url %}<a href="{{ next_url }}">Next &raquo;</a>{% else %}<span class="muted">Next &raquo;</span>{% endif %}
+    </p>
+</div>

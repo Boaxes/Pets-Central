@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: int_customer_people
+    description: Customer records grouped into people by shared normalized email or phone.
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        description: The smallest customer_id in the person's group.
+        data_tests: [not_null]
+
+  - name: int_member_matches
+    description: Each loyalty member's person, by email, then phone and last name, then name and postal code.
+    columns:
+      - name: member_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('int_customer_people'), field: person_id}
+      - name: match_method
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['email_and_phone', 'email', 'ambiguous_email', 'phone_and_last_name', 'ambiguous_phone',
+                         'name_and_postal_code', 'ambiguous_name', 'no_match']
+
+  - name: int_person_members
+    description: At most one loyalty membership per person.
+    columns:
+      - name: person_id
+        data_tests: [unique, not_null]
+      - name: member_id
+        data_tests: [unique, not_null]

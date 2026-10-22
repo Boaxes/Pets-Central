@@ -1,0 +1,64 @@
+relationship fct_sale_line_date
+	fromColumn: fct_sale_line.sale_date
+	toColumn: dim_date.date
+
+relationship fct_sale_line_store
+	fromColumn: fct_sale_line.store_id
+	toColumn: dim_store.store_id
+
+relationship fct_sale_line_product
+	fromColumn: fct_sale_line.product_id
+	toColumn: dim_product.product_id
+
+relationship fct_sale_line_customer
+	fromColumn: fct_sale_line.person_id
+	toColumn: dim_customer.person_id
+
+relationship fct_sale_line_campaign
+	fromColumn: fct_sale_line.coupon_campaign_id
+	toColumn: dim_campaign.campaign_id
+
+relationship fct_return_date
+	fromColumn: fct_return.return_date
+	toColumn: dim_date.date
+
+relationship fct_return_store
+	fromColumn: fct_return.store_id
+	toColumn: dim_store.store_id
+
+relationship fct_return_product
+	fromColumn: fct_return.product_id
+	toColumn: dim_product.product_id
+
+relationship fct_return_customer
+	fromColumn: fct_return.person_id
+	toColumn: dim_customer.person_id
+
+relationship fct_coupon_redemption_date
+	fromColumn: fct_coupon_redemption.redeemed_date
+	toColumn: dim_date.date
+
+relationship fct_coupon_redemption_store
+	fromColumn: fct_coupon_redemption.store_id
+	toColumn: dim_store.store_id
+
+relationship fct_coupon_redemption_campaign
+	fromColumn: fct_coupon_redemption.campaign_id
+	toColumn: dim_campaign.campaign_id
+
+relationship fct_coupon_redemption_customer
+	fromColumn: fct_coupon_redemption.person_id
+	toColumn: dim_customer.person_id
+
+relationship fct_email_event_date
+	fromColumn: fct_email_event.sent_date
+	toColumn: dim_date.date
+
+relationship fct_email_event_campaign
+	fromColumn: fct_email_event.campaign_id
+	toColumn: dim_campaign.campaign_id
+
+relationship fct_email_event_customer
+	fromColumn: fct_email_event.person_id
+	toColumn: dim_customer.person_id
+

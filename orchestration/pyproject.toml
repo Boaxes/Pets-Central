@@ -1,0 +1,27 @@
+[project]
+name = "pets-central-orchestration"
+version = "0.1.0"
+description = "Dagster: the store and loyalty loaders and the dbt project as assets, on one daily schedule"
+requires-python = ">=3.13"
+dependencies = [
+    "dagster>=1.13.26",
+    "dagster-dbt>=0.29.26",
+    "dagster-postgres>=0.29.26",
+    "dagster-webserver>=1.13.26",
+    "dbt-core>=1.12.6",
+    "dbt-snowflake>=1.12.3",
+    "httpx>=0.28.1",
+    "psycopg[binary]>=3.3.6",
+    "python-dotenv>=1.2.4",
+    "sqlalchemy>=2.0,<2.1",
+]
+
+[tool.dagster]
+# Run from the repository root, so both orchestration/ and pipeline/ import.
+module_name = "orchestration.definitions"
+
+[dependency-groups]
+dev = [
+    "playwright>=1.64.0",
+    "pytest>=9.1.1",
+]

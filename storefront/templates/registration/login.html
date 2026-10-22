@@ -1,0 +1,26 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign in - Pets Central</title>
+    <link rel="stylesheet" href="{% static 'storefront/style.css' %}">
+</head>
+<body>
+<main class="narrow" style="max-width: 420px;">
+    <h1>Pets Central store system</h1>
+    {% if demo_manager %}
+    <p class="demo-note">Demo: signing in as <strong>{{ demo_manager.first_name }} {{ demo_manager.last_name }}</strong>,
+        manager of {{ demo_manager.store.store_code }} {{ demo_manager.store.name }}. The password is filled in for you.</p>
+    {% endif %}
+    {% if form.errors %}<p class="message error">That username and password didn't match.</p>{% endif %}
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <input type="hidden" name="next" value="{{ next }}">
+        <button>Sign in</button>
+    </form>
+    {% if demo_sign_in %}<p><a href="{% url 'demo_sign_in' %}">Demo: pick a store on the map</a></p>{% endif %}
+</main>
+</body>
+</html>

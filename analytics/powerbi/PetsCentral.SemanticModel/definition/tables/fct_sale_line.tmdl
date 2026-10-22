@@ -1,0 +1,367 @@
+/// One row per completed sale line (cancelled sales left out), from MARTS.FCT_SALE_LINES. Guests have person_id -1; lines without a coupon have coupon_campaign_id -1.
+table fct_sale_line
+	lineageTag: 9f537161-ac8a-4258-ba3e-982b98cccfce
+
+	/// Net sales after discounts, completed sales only.
+	measure Revenue = SUM ( fct_sale_line[net_amount] )
+		formatString: \$#,0
+		displayFolder: Sales
+		lineageTag: eb4068bd-ea34-4f16-ad0e-3d432dfe1678
+
+	measure Units = SUM ( fct_sale_line[quantity] )
+		formatString: #,0
+		displayFolder: Sales
+		lineageTag: 1b3ef3f1-e05d-483c-b153-809e52c4060a
+
+	/// Completed sales (receipts).
+	measure Transactions = DISTINCTCOUNT ( fct_sale_line[sale_id] )
+		formatString: #,0
+		displayFolder: Sales
+		lineageTag: 43bec9bf-c5f5-474b-a797-0edc7f212150
+
+	measure 'Average Basket' = DIVIDE ( [Revenue], [Transactions] )
+		formatString: \$#,0.00
+		displayFolder: Sales
+		lineageTag: 7e4cdea3-8531-47fd-a90c-afd0f1992088
+
+	measure Discounts = SUM ( fct_sale_line[discount_amount] )
+		formatString: \$#,0
+		displayFolder: Sales
+		lineageTag: a054a8cb-7543-4621-8a12-8c32630ff4af
+
+	measure 'Gross Margin' = SUM ( fct_sale_line[gross_margin] )
+		formatString: \$#,0
+		displayFolder: Margin
+		lineageTag: 96d0fef3-ada5-4401-8666-c6edc098150d
+
+	measure 'Margin %' = DIVIDE ( [Gross Margin], [Revenue] )
+		formatString: 0.0%
+		displayFolder: Margin
+		lineageTag: 4194c80f-d3ae-4883-aaae-50ba9db15211
+
+	/// Revenue in the same dates a year earlier, only up to the last full trading day, and blank where last year is before the data begins.
+	measure 'Revenue LY' =
+			VAR LastSale = [Last Sale Date]
+			VAR FirstSale = CALCULATE ( MIN ( fct_sale_line[sale_date] ), REMOVEFILTERS () )
+			VAR Shown = FILTER ( VALUES ( dim_date[date] ), dim_date[date] <= LastSale )
+			RETURN IF ( EDATE ( MINX ( Shown, dim_date[date] ), -12 ) >= FirstSale, CALCULATE ( [Revenue], DATEADD ( Shown, -1, YEAR ) ) )
+		formatString: \$#,0
+		displayFolder: Time Intelligence
+		lineageTag: 4d27eaaa-966c-4f90-ac3a-105d871a9708
+
+	measure 'Revenue YoY %' = DIVIDE ( [Revenue] - [Revenue LY], [Revenue LY] )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Time Intelligence
+		lineageTag: 58098cde-36f1-42dd-b905-b8f5d2fce0f9
+
+	measure 'Revenue YTD' = TOTALYTD ( [Revenue], dim_date[date] )
+		formatString: \$#,0
+		displayFolder: Time Intelligence
+		lineageTag: d3570220-697a-4a89-a1f9-88c54fd5c7ac
+
+	measure 'Transactions LY' =
+			VAR LastSale = [Last Sale Date]
+			VAR FirstSale = CALCULATE ( MIN ( fct_sale_line[sale_date] ), REMOVEFILTERS () )
+			VAR Shown = FILTER ( VALUES ( dim_date[date] ), dim_date[date] <= LastSale )
+			RETURN IF ( EDATE ( MINX ( Shown, dim_date[date] ), -12 ) >= FirstSale, CALCULATE ( [Transactions], DATEADD ( Shown, -1, YEAR ) ) )
+		formatString: #,0
+		displayFolder: Time Intelligence
+		lineageTag: db56d1b0-4e4e-4452-9fd7-a90ed7f5194e
+
+	measure 'Transactions YoY %' = DIVIDE ( [Transactions] - [Transactions LY], [Transactions LY] )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Time Intelligence
+		lineageTag: 44b3652f-b63c-4dc1-bdb7-07e77eae458d
+
+	measure 'Average Basket LY' = DIVIDE ( [Revenue LY], [Transactions LY] )
+		formatString: \$#,0.00
+		displayFolder: Time Intelligence
+		lineageTag: d1c9b9dc-bb01-4b1a-b0f9-6b0ec300d476
+
+	measure 'Margin % LY' =
+			VAR LastSale = [Last Sale Date]
+			VAR FirstSale = CALCULATE ( MIN ( fct_sale_line[sale_date] ), REMOVEFILTERS () )
+			VAR Shown = FILTER ( VALUES ( dim_date[date] ), dim_date[date] <= LastSale )
+			RETURN IF ( EDATE ( MINX ( Shown, dim_date[date] ), -12 ) >= FirstSale, CALCULATE ( [Margin %], DATEADD ( Shown, -1, YEAR ) ) )
+		formatString: 0.0%
+		displayFolder: Time Intelligence
+		lineageTag: 635bc7d5-a0d5-49f6-a8b5-2a5c4c375ff1
+
+	measure 'Units LY' =
+			VAR LastSale = [Last Sale Date]
+			VAR FirstSale = CALCULATE ( MIN ( fct_sale_line[sale_date] ), REMOVEFILTERS () )
+			VAR Shown = FILTER ( VALUES ( dim_date[date] ), dim_date[date] <= LastSale )
+			RETURN IF ( EDATE ( MINX ( Shown, dim_date[date] ), -12 ) >= FirstSale, CALCULATE ( [Units], DATEADD ( Shown, -1, YEAR ) ) )
+		formatString: #,0
+		displayFolder: Time Intelligence
+		lineageTag: 5c24d3f9-41ab-4e6d-b71b-b70764882fbd
+
+	/// People who bought, guests left out.
+	measure Customers = CALCULATE ( DISTINCTCOUNT ( fct_sale_line[person_id] ), fct_sale_line[person_id] <> -1 )
+		formatString: #,0
+		displayFolder: Customers
+		lineageTag: a5a28c69-07ae-4525-88ed-84afdf4c4a27
+
+	/// People with more than one purchase in the period.
+	measure 'Repeat Customers' = COUNTROWS ( FILTER ( CALCULATETABLE ( VALUES ( fct_sale_line[person_id] ), fct_sale_line[person_id] <> -1 ), CALCULATE ( DISTINCTCOUNT ( fct_sale_line[sale_id] ) ) > 1 ) )
+		formatString: #,0
+		displayFolder: Customers
+		lineageTag: 0fbdaf5d-8577-42e4-9dd2-9254790b57c1
+
+	measure 'Repeat Rate' = DIVIDE ( [Repeat Customers], [Customers] )
+		formatString: 0.0%
+		displayFolder: Customers
+		lineageTag: 58f1f2d5-31c7-445b-9c56-de506658265e
+
+	measure 'Member Revenue %' = DIVIDE ( CALCULATE ( [Revenue], dim_customer[membership] = "Member" ), [Revenue] )
+		formatString: 0.0%
+		displayFolder: Customers
+		lineageTag: 09ecbe24-f0f6-45ee-aef3-302aa3bdb055
+
+	measure 'Guest Revenue %' = DIVIDE ( CALCULATE ( [Revenue], dim_customer[membership] = "Guest" ), [Revenue] )
+		formatString: 0.0%
+		displayFolder: Customers
+		lineageTag: 04cdaa29-a917-426d-9742-416536711232
+
+	measure 'Revenue per Customer' = DIVIDE ( CALCULATE ( [Revenue], fct_sale_line[person_id] <> -1 ), [Customers] )
+		formatString: \$#,0.00
+		displayFolder: Customers
+		lineageTag: b4419610-8e7e-4597-ac59-7e2daa4ab88b
+
+	measure 'Average Basket YoY %' = DIVIDE ( [Average Basket] - [Average Basket LY], [Average Basket LY] )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Time Intelligence
+		lineageTag: a251c109-de59-4387-806b-ab9069fa927c
+
+	measure 'Units YoY %' = DIVIDE ( [Units] - [Units LY], [Units LY] )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Time Intelligence
+		lineageTag: cbfad6fb-4dfa-4ad1-878a-5d810914afa0
+
+	/// Margin % now minus last year's, in percentage points.
+	measure 'Margin % Change' = IF ( NOT ISBLANK ( [Margin % LY] ), [Margin %] - [Margin % LY] )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: Time Intelligence
+		lineageTag: c2f92fb5-dec8-48f3-a069-4b721440b8f1
+
+	/// The last full trading day: comparisons with last year run up to this date.
+	measure 'Last Sale Date' = CALCULATE ( MAX ( dim_date[date] ), dim_date[is_full_trading_day] = TRUE (), REMOVEFILTERS () )
+		formatString: yyyy-mm-dd
+		displayFolder: Time Intelligence
+		lineageTag: 3aa10d6b-bc43-41ec-b2c9-79d07e6fbe91
+
+	measure 'Revenue vs LY' =
+			VAR Change = [Revenue YoY %]
+			RETURN IF ( ISBLANK ( [Revenue LY] ), "No full year to compare", IF ( Change >= 0, "▲ ", "▼ " ) & FORMAT ( ABS ( Change ), "0.0%" ) & " vs last year" )
+		displayFolder: Labels
+		lineageTag: d61b9170-e75f-430d-ac45-a442d055c53a
+
+	measure 'Transactions vs LY' =
+			VAR Change = [Transactions YoY %]
+			RETURN IF ( ISBLANK ( [Transactions LY] ), "No full year to compare", IF ( Change >= 0, "▲ ", "▼ " ) & FORMAT ( ABS ( Change ), "0.0%" ) & " vs last year" )
+		displayFolder: Labels
+		lineageTag: da3299ca-b753-4c67-a16e-91aeaf1e9d14
+
+	measure 'Average Basket vs LY' =
+			VAR Change = [Average Basket YoY %]
+			RETURN IF ( ISBLANK ( [Average Basket LY] ), "No full year to compare", IF ( Change >= 0, "▲ ", "▼ " ) & FORMAT ( ABS ( Change ), "0.0%" ) & " vs last year" )
+		displayFolder: Labels
+		lineageTag: 69bf72f2-19ec-48f5-a476-a21e846a7756
+
+	measure 'Units vs LY' =
+			VAR Change = [Units YoY %]
+			RETURN IF ( ISBLANK ( [Units LY] ), "No full year to compare", IF ( Change >= 0, "▲ ", "▼ " ) & FORMAT ( ABS ( Change ), "0.0%" ) & " vs last year" )
+		displayFolder: Labels
+		lineageTag: 6d6be7f5-7c56-419c-89d0-081598966128
+
+	measure 'Margin vs LY' =
+			VAR Change = [Margin % Change]
+			RETURN IF ( ISBLANK ( [Margin % LY] ), "No full year to compare", IF ( Change >= 0, "▲ ", "▼ " ) & FORMAT ( ABS ( Change ) * 100, "0.0" ) & " pts vs last year" )
+		displayFolder: Labels
+		lineageTag: e4bd1068-78b4-4458-bdd6-5cb1453f6af5
+
+	measure 'Revenue vs LY Color' = IF ( ISBLANK ( [Revenue LY] ), "#798382", IF ( [Revenue YoY %] < 0, "#a3553f", "#1f6f6a" ) )
+		displayFolder: Labels
+		lineageTag: b65b0b04-3980-440f-b0f8-28f2d7f28ecb
+
+	measure 'Transactions vs LY Color' = IF ( ISBLANK ( [Transactions LY] ), "#798382", IF ( [Transactions YoY %] < 0, "#a3553f", "#1f6f6a" ) )
+		displayFolder: Labels
+		lineageTag: 8b9b2455-4e09-48f8-b2c0-4ec0e9f0123f
+
+	measure 'Average Basket vs LY Color' = IF ( ISBLANK ( [Average Basket LY] ), "#798382", IF ( [Average Basket YoY %] < 0, "#a3553f", "#1f6f6a" ) )
+		displayFolder: Labels
+		lineageTag: d1555a07-3705-4be5-a03f-4fca6a1d949e
+
+	measure 'Units vs LY Color' = IF ( ISBLANK ( [Units LY] ), "#798382", IF ( [Units YoY %] < 0, "#a3553f", "#1f6f6a" ) )
+		displayFolder: Labels
+		lineageTag: 57ef56c8-8480-492c-882b-adbd4c8a0483
+
+	measure 'Margin vs LY Color' = IF ( ISBLANK ( [Margin % LY] ), "#798382", IF ( [Margin % Change] < 0, "#a3553f", "#1f6f6a" ) )
+		displayFolder: Labels
+		lineageTag: 8408e631-3f0c-4cb3-ac72-27bcb459a743
+
+	/// Revenue, blank for the month still in progress, so trend lines don't drop at the end.
+	measure 'Revenue (Complete Months)' = IF ( EOMONTH ( MAX ( dim_date[date] ), 0 ) <= [Last Sale Date], [Revenue] )
+		formatString: \$#,0
+		displayFolder: Time Intelligence
+		lineageTag: d219658d-78d8-478c-b087-443573759e75
+
+	measure 'Revenue LY (Complete Months)' = IF ( EOMONTH ( MAX ( dim_date[date] ), 0 ) <= [Last Sale Date], [Revenue LY] )
+		formatString: \$#,0
+		displayFolder: Time Intelligence
+		lineageTag: cecd5cd7-1122-4ac7-a862-3d25171d886c
+
+	column sale_line_id
+		dataType: double
+		isHidden
+		lineageTag: 97922fbb-ddc6-4527-9a40-b25f76f1dd71
+		summarizeBy: sum
+		sourceColumn: sale_line_id
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column sale_id
+		dataType: double
+		isHidden
+		lineageTag: 78c8ffe1-9d7a-470e-af57-12ab2fc186dd
+		summarizeBy: sum
+		sourceColumn: sale_id
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column sale_date
+		dataType: dateTime
+		isHidden
+		formatString: Long Date
+		lineageTag: 7c9c17d1-9506-41ff-9ab2-0a3b1cdd52bf
+		summarizeBy: none
+		sourceColumn: sale_date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column store_id
+		dataType: double
+		isHidden
+		lineageTag: 2268a1f7-0ae3-493d-9b27-ebba29882d3f
+		summarizeBy: none
+		sourceColumn: store_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column product_id
+		dataType: double
+		isHidden
+		lineageTag: d45330df-34d9-4c40-b2d0-62072ae601f7
+		summarizeBy: none
+		sourceColumn: product_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column person_id
+		dataType: double
+		isHidden
+		lineageTag: 974a4092-9c1f-4358-b77f-cff67aaf8ed3
+		summarizeBy: none
+		sourceColumn: person_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column coupon_campaign_id
+		dataType: double
+		isHidden
+		lineageTag: ea4a1271-aa67-4679-a5cd-c732ce415fc0
+		summarizeBy: none
+		sourceColumn: coupon_campaign_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column channel
+		dataType: string
+		lineageTag: dd49eeab-911c-400b-b428-32330b896dc5
+		sourceColumn: channel
+
+	column quantity
+		dataType: double
+		isHidden
+		lineageTag: f4d0bd03-b110-4c46-b454-134b08c624fa
+		summarizeBy: sum
+		sourceColumn: quantity
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column gross_amount
+		dataType: double
+		isHidden
+		lineageTag: 73c5323b-0ab4-47f7-8c13-c4c904e3a208
+		summarizeBy: sum
+		sourceColumn: gross_amount
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column discount_amount
+		dataType: double
+		isHidden
+		lineageTag: 55974595-6f9b-4f10-ae03-37953c4ac119
+		summarizeBy: sum
+		sourceColumn: discount_amount
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column net_amount
+		dataType: double
+		isHidden
+		lineageTag: f9a243a5-65b1-417c-919d-34679933c9bc
+		summarizeBy: sum
+		sourceColumn: net_amount
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column cost_amount
+		dataType: double
+		isHidden
+		lineageTag: cf3ad3e8-dbfa-415d-a91a-950b922e1c30
+		summarizeBy: sum
+		sourceColumn: cost_amount
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column gross_margin
+		dataType: double
+		isHidden
+		lineageTag: 80286db8-5674-46fa-86fc-d85deddfc6e1
+		summarizeBy: sum
+		sourceColumn: gross_margin
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition fct_sale_line = m
+		mode: import
+		source =
+				let
+				    Source = marts{[Name = "FCT_SALE_LINES", Kind = "Table"]}[Data],
+				    Completed = Table.SelectRows(Source, each [IS_CANCELLED] = false),
+				    Kept = Table.SelectColumns(Completed, {"SALE_LINE_ID", "SALE_ID", "SALE_DATE", "STORE_ID", "PRODUCT_ID", "PERSON_ID", "COUPON_CAMPAIGN_ID", "CHANNEL", "QUANTITY", "GROSS_AMOUNT", "DISCOUNT_AMOUNT", "NET_AMOUNT", "COST_AMOUNT", "GROSS_MARGIN"}),
+				    Lower = Table.TransformColumnNames(Kept, Text.Lower),
+				    Keys = Table.ReplaceValue(Lower, null, -1, Replacer.ReplaceValue, {"person_id", "coupon_campaign_id"}),
+				    Channel = Table.TransformColumns(Keys, {{"channel", each if _ = "in_store" then "In Store" else "Online", type text}})
+				in
+				    Channel
+

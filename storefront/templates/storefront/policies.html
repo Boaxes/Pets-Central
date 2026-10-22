@@ -1,0 +1,29 @@
+{% extends 'storefront/base.html' %}
+{% block title %}Policies{% endblock %}
+{% block content %}
+<h1>Policies</h1>
+<p class="muted">Corporate policies in force at this store, including {{ request.store.state }} rules.</p>
+<form method="get" action="{{ request.path }}" class="toolbar"
+      hx-get="{{ request.path }}" hx-target="#policy-list" hx-select="#policy-list" hx-swap="outerHTML" hx-push-url="true"
+      hx-trigger="submit, input changed delay:300ms from:input[name=q]">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search policies" aria-label="Search policies">
+    <button>Search</button>
+</form>
+<div id="policy-list">
+    <table class="wide">
+        <tr><th>Policy</th><th>Category</th><th>Version</th><th>Effective</th><th>Applies to</th><th>Summary</th></tr>
+        {% for category, items in groups.items %}{% for p in items %}
+        <tr>
+            <td><a href="{% url 'policy' p.slug %}">{{ p.title }}</a></td>
+            <td>{{ category }}</td>
+            <td>{{ p.version }}</td>
+            <td class="nowrap">{{ p.effective_on|date:"Y-m-d" }}</td>
+            <td class="nowrap">{% if p.states %}{{ p.states|join:", " }} only{% else %}All stores{% endif %}</td>
+            <td>{{ p.summary }}</td>
+        </tr>
+        {% endfor %}{% empty %}
+        <tr><td colspan="6">No policies found.</td></tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}

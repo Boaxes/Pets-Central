@@ -1,0 +1,53 @@
+{% extends 'storefront/base.html' %}
+{% load humanize %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<h1>{{ request.store.name }} ({{ request.store.store_code }})</h1>
+<p class="subtitle">{{ request.store.address_line }}, {{ request.store.city }}, {{ request.store.state }} {{ request.store.postal_code }} &middot; {{ request.store.region.name }} region{% if latest %} &middot; latest sale {{ latest|date:"M j, Y g:i a" }}{% endif %}</p>
+
+<div class="stats">
+    {% for label, value, note in stats %}
+    <div class="stat">
+        <div class="stat-label">{{ label }}</div>
+        <div class="stat-value">{{ value }}</div>
+        {% if note %}<div class="stat-note">{{ note }}</div>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<div class="dashboard">
+    <section class="panel">
+        <h2>Revenue by month</h2>
+        {% include 'storefront/charts/columns.html' with chart=revenue_chart title='Revenue by month' %}
+    </section>
+    <section class="panel">
+        <h2>Revenue by department, last 30 days</h2>
+        <div class="bars-wrap">{% include 'storefront/charts/bars.html' with chart=department_chart title='Revenue by department, last 30 days' %}</div>
+    </section>
+
+    <section class="panel">
+        <h2>Recent sales <a class="more" href="{% url 'sales' %}">All sales &rarr;</a></h2>
+        <table class="wide plain">
+            <tr><th>Receipt</th><th>Sold</th><th>Customer</th><th class="num">Items</th><th class="num">Total</th></tr>
+            {% for s in recent %}
+            <tr>
+                <td><a href="{% url 'sales' %}?tab=details&amp;id={{ s.pk }}">{{ s.receipt_number }}</a></td>
+                <td class="nowrap">{{ s.sold_at|date:"M j, g:i a" }}</td>
+                <td>{% if s.customer %}{{ s.customer.first_name }} {{ s.customer.last_name }}{% else %}<span class="muted">Guest</span>{% endif %}</td>
+                <td class="num">{{ s.item_count }}</td>
+                <td class="num">${{ s.net_total|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </section>
+    <section class="panel">
+        <h2>Needs attention</h2>
+        <ul class="attention">
+            {% for count, label, share, link in attention %}
+            <li><a href="{{ link }}"><span class="count{% if not count %} zero{% endif %}">{{ count|intcomma }}</span>
+                <span>{{ label }}{% if share %}<span class="share">{{ share }}</span>{% endif %}</span></a></li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+{% endblock %}

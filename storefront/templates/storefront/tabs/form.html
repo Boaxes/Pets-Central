@@ -1,0 +1,7 @@
+{% if form %}
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button {% if danger %}class="danger"{% endif %}>{{ submit }}</button>
+</form>
+{% endif %}

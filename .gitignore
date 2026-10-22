@@ -1,0 +1,30 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Local secrets and databases
+.env
+db.sqlite3
+
+# Generated data
+data/
+staticfiles/
+
+# Loyalty API local settings
+local.settings.json
+
+# Terraform: providers, state and local settings stay local
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# Streamlit secrets (local connections, the demo's keys)
+**/.streamlit/secrets.toml

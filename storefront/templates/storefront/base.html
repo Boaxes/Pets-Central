@@ -1,0 +1,50 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{% endblock %} - Pets Central {{ request.store.store_code }}</title>
+    <link rel="stylesheet" href="{% static 'storefront/style.css' %}">
+    {# HTMX lets search boxes and paging update just the results. Every form still works without it. #}
+    <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+</head>
+<body>
+<header>
+    <div class="topbar">
+        <span class="brand">Pets Central</span>
+        <span class="store">{{ request.store.store_code }} &middot; {{ request.store.name }}, {{ request.store.city }}, {{ request.store.state }}</span>
+        <span class="spacer"></span>
+        {% if request.is_corporate %}
+        <form method="post" action="{% url 'switch_store' %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <select name="store" aria-label="Store">
+                {% for s in all_stores %}<option value="{{ s.pk }}" {% if s.pk == request.store.pk %}selected{% endif %}>{{ s.store_code }} {{ s.name }}</option>{% endfor %}
+            </select>
+            <button>Switch</button>
+        </form>
+        {% endif %}
+        <span class="user">{{ request.user.get_full_name|default:request.user.username }} &middot; {% if request.is_corporate %}Corporate{% else %}Store manager{% endif %}</span>
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button>Sign out</button></form>
+    </div>
+    <nav class="mainnav">
+        {% with section=request.resolver_match.url_name %}
+        <a href="{% url 'home' %}" {% if section == 'home' %}class="current"{% endif %}>Home</a>
+        <a href="{% url 'sales' %}" {% if section == 'sales' %}class="current"{% endif %}>Sales</a>
+        <a href="{% url 'customers' %}" {% if section == 'customers' %}class="current"{% endif %}>Customers</a>
+        <a href="{% url 'animals' %}" {% if section == 'animals' %}class="current"{% endif %}>Animals</a>
+        <a href="{% url 'caretakers' %}" {% if section == 'caretakers' %}class="current"{% endif %}>Animal Caretakers</a>
+        <a href="{% url 'employees' %}" {% if section == 'employees' %}class="current"{% endif %}>Employees</a>
+        <a href="{% url 'products' %}" {% if section == 'products' %}class="current"{% endif %}>Products</a>
+        <a href="{% url 'categories' %}" {% if section == 'categories' %}class="current"{% endif %}>Categories</a>
+        <a href="{% url 'policies' %}" {% if section == 'policies' or section == 'policy' %}class="current"{% endif %}>Policies</a>
+        <a href="{% url 'assistant' %}" {% if section == 'assistant' or section == 'assistant_question' %}class="current"{% endif %}>Assistant</a>
+        {% endwith %}
+    </nav>
+</header>
+<main>
+    {% for message in messages %}<p class="message {% if message.tags == 'error' %}error{% endif %}">{{ message }}</p>{% endfor %}
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

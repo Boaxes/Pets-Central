@@ -1,0 +1,96 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Demo sign-in - Pets Central</title>
+    <link rel="stylesheet" href="{% static 'storefront/style.css' %}">
+    {# The map is the one place the app uses JavaScript beyond HTMX. The store list below works without it. #}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body>
+<header><div class="topbar"><span class="brand">Pets Central</span><span class="store">Demo sign-in</span></div></header>
+<main class="demo">
+    <h1>Pick a store</h1>
+    <p class="subtitle">Sign in as any of the {{ store_count }} stores' managers. You'll see only that store's data.
+        Click a store on the map, or pick one from the list below.</p>
+    {% for message in messages %}<p class="message error">{{ message }}</p>{% endfor %}
+
+    <div id="map" class="store-map" role="region" aria-label="Map of stores"></div>
+    <p class="legend muted">
+        <span><span class="dot pets"></span>Pets Central store</span>
+        <span><span class="dot acquired"></span>Bought from Critter Corner</span>
+    </p>
+
+    {# One form for the map's popups and the list: each button sends its store. #}
+    <form method="post" id="pick">
+        {% csrf_token %}
+        <h2>All stores by state</h2>
+        <div class="store-list">
+            {% for state, stores in states.items %}
+            <div>
+                <h3>{{ state }}</h3>
+                <ul>
+                    {% for s in stores %}<li><button class="linkbutton" name="store" value="{{ s.pk }}">{{ s.store_code }} {{ s.name }}</button></li>{% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        </div>
+    </form>
+</main>
+{{ points|json_script:"stores" }}
+<script>
+    const stores = JSON.parse(document.getElementById('stores').textContent);
+    // Start on the lower 48, so the map is right even before it's fitted to the stores.
+    const map = L.map('map', {scrollWheelZoom: false, zoomSnap: 0.25, minZoom: 3, maxZoom: 9,
+                              attributionControl: false}).setView([39.5, -98.5], 4);
+    // State outlines from a file served with the app (US Census, public domain), instead of a tile server:
+    // nothing to sign up for, no usage limits, and it looks like the rest of the app.
+    fetch("{% static 'storefront/us-states.json' %}").then(response => response.json()).then(states => {
+        L.geoJSON(states, {
+            interactive: false,
+            style: {color: '#ffffff', weight: 1, fillColor: '#d8dee4', fillOpacity: 1},
+        }).addTo(map).bringToBack();
+    });
+
+    // Popups are built from DOM nodes with textContent, so store names are never read as HTML.
+    function popup(store) {
+        const box = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = `${store.code} ${store.name}`;
+        const where = document.createElement('div');
+        where.textContent = `${store.city}, ${store.state} · ${store.region} region`;
+        box.append(title, where);
+        if (store.acquired) {
+            const note = document.createElement('div');
+            note.textContent = 'Bought from Critter Corner';
+            box.append(note);
+        }
+        const button = document.createElement('button');
+        button.setAttribute('form', 'pick');
+        button.name = 'store';
+        button.value = store.id;
+        button.textContent = store.manager ? `Sign in as ${store.manager}` : 'No manager right now';
+        button.disabled = !store.manager;
+        box.append(button);
+        return box;
+    }
+
+    const markers = stores.map(store => L.circleMarker([store.lat, store.lng], {
+        radius: 6, weight: 1.5, color: '#ffffff', fillOpacity: 0.9,
+        fillColor: store.acquired ? '#bc4c00' : '#0969da',
+    }).bindTooltip(`${store.code} ${store.name}`).bindPopup(() => popup(store)).addTo(map));
+    // Fit once the page has its final size; a map measured while still zero-sized zooms all the way in.
+    const bounds = L.featureGroup(markers).getBounds();
+    function fit() {
+        map.invalidateSize();
+        map.fitBounds(bounds, {padding: [24, 24], maxZoom: 6});
+    }
+    window.addEventListener('load', fit);
+    new ResizeObserver(fit).observe(document.getElementById('map'));
+</script>
+</body>
+</html>

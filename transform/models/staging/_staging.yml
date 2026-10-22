@@ -1,0 +1,104 @@
+version: 2
+
+# Staging keeps one row per id; these tests prove it, and that the cross-source mappings found a match.
+models:
+  - name: stg_store_ops__stores
+    columns:
+      - name: store_id
+        data_tests: [unique, not_null]
+      - name: store_code
+        data_tests: [unique, not_null]
+  - name: stg_store_ops__products
+    columns:
+      - name: product_id
+        data_tests: [unique, not_null]
+  - name: stg_store_ops__product_prices
+    columns:
+      - name: product_price_id
+        data_tests: [unique, not_null]
+  - name: stg_store_ops__customers
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+  - name: stg_store_ops__sales
+    columns:
+      - name: sale_id
+        data_tests: [unique, not_null]
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['completed', 'cancelled']}
+      - name: channel
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['in_store', 'online']}
+      - name: coupon_code
+        description: Every code typed at the register must name a loyalty campaign once normalized.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_loyalty__campaigns'), field: campaign_code}
+  - name: stg_store_ops__sale_lines
+    columns:
+      - name: sale_line_id
+        data_tests: [unique, not_null]
+      - name: sale_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_store_ops__sales'), field: sale_id}
+  - name: stg_store_ops__returns
+    columns:
+      - name: return_id
+        data_tests: [unique, not_null]
+  - name: stg_store_ops__return_lines
+    columns:
+      - name: return_line_id
+        data_tests: [unique, not_null]
+
+  - name: stg_loyalty__members
+    columns:
+      - name: member_id
+        data_tests: [unique, not_null]
+      - name: home_store_code
+        description: The platform's store codes, translated to the store system's.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('stg_store_ops__stores'), field: store_code}
+      - name: tier
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['bronze', 'silver', 'gold']}
+  - name: stg_loyalty__campaigns
+    columns:
+      - name: campaign_id
+        data_tests: [unique, not_null]
+      - name: campaign_code
+        data_tests: [unique, not_null]
+  - name: stg_loyalty__points_transactions
+    columns:
+      - name: points_transaction_id
+        data_tests: [unique, not_null]
+      - name: occurred_at_utc
+        description: Null would mean the store code didn't map, so the local time couldn't be converted.
+        data_tests: [not_null]
+      - name: transaction_type
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['earn', 'campaign_bonus', 'reversal', 'redeem']}
+  - name: stg_loyalty__email_events
+    columns:
+      - name: email_event_id
+        data_tests: [unique, not_null]
+      - name: campaign_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_loyalty__campaigns'), field: campaign_id}
+  - name: stg_loyalty__coupon_redemptions
+    columns:
+      - name: redemption_id
+        data_tests: [unique, not_null]
+      - name: store_code
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('stg_store_ops__stores'), field: store_code}

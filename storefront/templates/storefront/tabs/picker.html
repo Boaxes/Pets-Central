@@ -1,0 +1,11 @@
+<form method="get" action="{{ request.path }}" class="toolbar"
+      hx-get="{{ request.path }}" hx-target="#matches" hx-select="#matches" hx-swap="outerHTML"
+      hx-trigger="submit, input changed delay:300ms from:input[name=q]">
+    <input type="hidden" name="tab" value="{{ tab.key }}">
+    <input type="search" name="q" value="{{ q }}" placeholder="Find: {{ page.search_hint|default:'name or ID' }}" aria-label="Find a record">
+    <button>Find</button>
+</form>
+<ul id="matches">
+    {% for pk, label in matches %}<li><a href="?tab={{ tab.key }}&amp;q={{ q|urlencode }}&amp;id={{ pk }}">{% if selected.pk == pk %}<strong>{{ label }}</strong>{% else %}{{ label }}{% endif %}</a></li>
+    {% empty %}{% if q %}<li class="muted">No matching records.</li>{% endif %}{% endfor %}
+</ul>

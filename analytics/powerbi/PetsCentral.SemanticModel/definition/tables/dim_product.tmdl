@@ -1,0 +1,75 @@
+/// One row per product, with category, department, brand and species, from MARTS.DIM_PRODUCTS.
+table dim_product
+	lineageTag: 38010e46-2d0b-4e83-b05d-e544194e74e9
+
+	column product_id
+		dataType: double
+		isHidden
+		isKey
+		lineageTag: 8a1d60d1-9b40-4180-936a-5ae04d3600a1
+		summarizeBy: none
+		sourceColumn: product_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column sku
+		dataType: string
+		lineageTag: 38f20a5d-890a-44a7-99a0-f63ac567a9f9
+		sourceColumn: sku
+
+	column product_name
+		dataType: string
+		lineageTag: 51de8c24-82c8-40b0-a289-6b49fce7891c
+		sourceColumn: product_name
+
+	column category
+		dataType: string
+		lineageTag: 23820f55-12f9-4e22-96a9-736799fc03ac
+		sourceColumn: category
+
+	column department
+		dataType: string
+		lineageTag: 2734794d-7366-45ec-b92b-630291fea84a
+		sourceColumn: department
+
+	column brand
+		dataType: string
+		lineageTag: feaa7209-2ee8-47a8-be52-a06a88622939
+		sourceColumn: brand
+
+	column is_house_brand
+		dataType: boolean
+		lineageTag: 330a613a-42e4-423a-8da0-9ec71209e44c
+		sourceColumn: is_house_brand
+
+	column is_live_animal
+		dataType: boolean
+		lineageTag: cd22307b-4540-4491-9916-0e73a4e19e46
+		sourceColumn: is_live_animal
+
+	column species
+		dataType: string
+		lineageTag: ed78ce3b-7311-458c-b037-5ac51b8a7c0a
+		sourceColumn: species
+
+	column list_price
+		dataType: double
+		formatString: \$#,0.00
+		lineageTag: aaae4085-6241-4c65-acb1-b9eb8e52662a
+		summarizeBy: none
+		sourceColumn: list_price
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_product = m
+		mode: import
+		source =
+				let
+				    Source = marts{[Name = "DIM_PRODUCTS", Kind = "Table"]}[Data],
+				    Kept = Table.SelectColumns(Source, {"PRODUCT_ID", "SKU", "PRODUCT_NAME", "CATEGORY_NAME", "DEPARTMENT_NAME", "BRAND_NAME", "IS_HOUSE_BRAND", "IS_LIVE_ANIMAL", "SPECIES_COMMON_NAME", "CURRENT_LIST_PRICE"}),
+				    Lower = Table.TransformColumnNames(Kept, Text.Lower),
+				    Renamed = Table.RenameColumns(Lower, {{"category_name", "category"}, {"department_name", "department"}, {"brand_name", "brand"}, {"species_common_name", "species"}, {"current_list_price", "list_price"}}),
+				    NoBrand = Table.ReplaceValue(Renamed, null, "Unbranded", Replacer.ReplaceValue, {"brand"})
+				in
+				    NoBrand
+

@@ -1,0 +1,21 @@
+# Every night, the demo's database goes back to the seed: the Neon `demo` branch is reset to its parent, so whatever
+# visitors changed is gone for the next one. Its host and logins stay the same, so the store app needs no change.
+
+name: Demo Reset
+
+on:
+  schedule:
+    - cron: '0 9 * * *' # 09:00 UTC, the middle of the night in the US.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reset:
+    name: Reset the demo branch
+    runs-on: ubuntu-latest
+    steps:
+      - run: npx -y neonctl@8.8.0 branches reset demo --parent --project-id lingering-cell-84930188
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}

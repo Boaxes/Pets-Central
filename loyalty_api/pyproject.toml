@@ -1,0 +1,22 @@
+[project]
+name = "pets-central-loyalty-api"
+version = "0.1.0"
+description = "The loyalty and marketing platform's API: a FastAPI app hosted on Azure Functions"
+requires-python = ">=3.13"
+dependencies = [
+    "azure-functions>=2.3.0",
+    "fastapi>=0.143.3",
+    "python-dotenv>=1.2.4",
+    "tzdata>=2026.5",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]

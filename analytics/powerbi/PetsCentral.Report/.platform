@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "PetsCentral"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "9fda758b-48a3-438a-97ea-745cfeccedcf"
+  }
+}

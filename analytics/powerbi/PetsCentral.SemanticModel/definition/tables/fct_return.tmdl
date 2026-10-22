@@ -1,0 +1,126 @@
+/// One row per returned sale line, from MARTS.FCT_RETURNS, dated and placed at the store that took the return.
+table fct_return
+	lineageTag: 5f111665-e882-447d-9c52-b01a4c14c1bd
+
+	measure Refunds = SUM ( fct_return[refund_amount] )
+		formatString: \$#,0
+		displayFolder: Returns
+		lineageTag: 346660a5-a953-4dee-acf9-7ba687b30827
+
+	measure 'Units Returned' = SUM ( fct_return[quantity] )
+		formatString: #,0
+		displayFolder: Returns
+		lineageTag: 00c9cc08-df9c-4581-a1e6-ab9d81017273
+
+	/// Refunds as a share of revenue.
+	measure 'Return Rate' = DIVIDE ( [Refunds], [Revenue] )
+		formatString: 0.0%
+		displayFolder: Returns
+		lineageTag: d824c40c-1186-435d-94cf-6fb2fa610cd5
+
+	column return_line_id
+		dataType: double
+		isHidden
+		lineageTag: 5aeae144-09ea-4c6a-acc6-61f41da40c21
+		summarizeBy: sum
+		sourceColumn: return_line_id
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column return_date
+		dataType: dateTime
+		isHidden
+		formatString: Long Date
+		lineageTag: 0a8d7ebe-e5b6-441d-b0a9-74ab388e2ff3
+		summarizeBy: none
+		sourceColumn: return_date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column store_id
+		dataType: double
+		isHidden
+		lineageTag: b00d5544-41e1-4bf2-aa75-924dcc799514
+		summarizeBy: none
+		sourceColumn: store_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column product_id
+		dataType: double
+		isHidden
+		lineageTag: f125ecc1-1272-4bac-8868-054b47d81452
+		summarizeBy: none
+		sourceColumn: product_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column person_id
+		dataType: double
+		isHidden
+		lineageTag: 60e7faf2-caf8-464d-a4b4-0433717dc05e
+		summarizeBy: none
+		sourceColumn: person_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column reason
+		dataType: string
+		lineageTag: 1fdbd226-b304-41f8-8585-4f2899d15ccb
+		sourceColumn: reason
+
+	column quantity
+		dataType: double
+		isHidden
+		lineageTag: 7b6b1cd3-5c90-4362-8407-c49f60538a6e
+		summarizeBy: sum
+		sourceColumn: quantity
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column refund_amount
+		dataType: double
+		isHidden
+		lineageTag: a5215547-5062-4910-9c58-de0bb5b7476b
+		summarizeBy: sum
+		sourceColumn: refund_amount
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column returned_elsewhere
+		dataType: boolean
+		lineageTag: de6b3f89-efa2-434b-876a-d9e63d0c72c8
+		sourceColumn: returned_elsewhere
+
+	column days_to_return
+		dataType: double
+		isHidden
+		lineageTag: 8c93f22b-8be0-4683-b456-1c78f7805b55
+		summarizeBy: sum
+		sourceColumn: days_to_return
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition fct_return = m
+		mode: import
+		source =
+				let
+				    Source = marts{[Name = "FCT_RETURNS", Kind = "Table"]}[Data],
+				    Kept = Table.SelectColumns(Source, {"RETURN_LINE_ID", "RETURN_DATE", "RETURN_STORE_ID", "PRODUCT_ID", "PERSON_ID", "REASON", "QUANTITY", "REFUND_AMOUNT", "RETURNED_ELSEWHERE", "DAYS_TO_RETURN"}),
+				    Lower = Table.TransformColumnNames(Kept, Text.Lower),
+				    Renamed = Table.RenameColumns(Lower, {{"return_store_id", "store_id"}}),
+				    Keys = Table.ReplaceValue(Renamed, null, -1, Replacer.ReplaceValue, {"person_id"}),
+				    Reason = Table.TransformColumns(Keys, {{"reason", each Text.Proper(Text.Replace(_, "_", " ")), type text}})
+				in
+				    Reason
+

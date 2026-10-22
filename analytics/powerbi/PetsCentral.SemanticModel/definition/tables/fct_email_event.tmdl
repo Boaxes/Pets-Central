@@ -1,0 +1,107 @@
+/// One row per campaign email sent to a loyalty member, from MARTS.FCT_EMAIL_EVENTS.
+table fct_email_event
+	lineageTag: 9c7b5bfb-0606-4e09-bdab-72d962fac284
+
+	measure 'Emails Sent' = COUNTROWS ( fct_email_event )
+		formatString: #,0
+		displayFolder: Campaigns
+		lineageTag: ef2a38cc-9fb9-475a-86a5-7b8042d1e45c
+
+	measure 'Emails Opened' = CALCULATE ( COUNTROWS ( fct_email_event ), fct_email_event[was_opened] = TRUE () )
+		formatString: #,0
+		displayFolder: Campaigns
+		lineageTag: b7568ab3-afbf-4902-a0ed-c79d9e062d30
+
+	measure 'Emails Clicked' = CALCULATE ( COUNTROWS ( fct_email_event ), fct_email_event[was_clicked] = TRUE () )
+		formatString: #,0
+		displayFolder: Campaigns
+		lineageTag: 4b927f77-c482-48e2-81e1-f0e06e4bc328
+
+	measure 'Open Rate' = DIVIDE ( [Emails Opened], [Emails Sent] )
+		formatString: 0.0%
+		displayFolder: Campaigns
+		lineageTag: 24e38e25-5b05-45f9-8eeb-332988b0873a
+
+	measure 'Click Rate' = DIVIDE ( [Emails Clicked], [Emails Sent] )
+		formatString: 0.0%
+		displayFolder: Campaigns
+		lineageTag: cc29320d-552b-40b5-9b9e-c836ce037d7d
+
+	/// Coupons redeemed per email sent.
+	measure 'Redemption Rate' = DIVIDE ( [Redemptions], [Emails Sent] )
+		formatString: 0.0%
+		displayFolder: Campaigns
+		lineageTag: 8de0f950-9102-496b-82fe-60f5586e4428
+
+	measure 'Emails Opened (Complete Months)' = IF ( EOMONTH ( MAX ( dim_date[date] ), 0 ) <= [Last Sale Date], [Emails Opened] )
+		formatString: #,0
+		displayFolder: Campaigns
+		lineageTag: d41000a2-4683-4331-8ffb-2aca0dd13ca2
+
+	column email_event_id
+		dataType: double
+		isHidden
+		lineageTag: 7fbdbe8e-662c-4757-a762-4898b7ca94b3
+		summarizeBy: sum
+		sourceColumn: email_event_id
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column campaign_id
+		dataType: double
+		isHidden
+		lineageTag: 79cef97a-fc77-4cc1-a1d5-5bb91ad1b559
+		summarizeBy: none
+		sourceColumn: campaign_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column person_id
+		dataType: double
+		isHidden
+		lineageTag: 0a0202f8-0c03-4683-9983-372b8f3ed905
+		summarizeBy: none
+		sourceColumn: person_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column sent_date
+		dataType: dateTime
+		isHidden
+		formatString: Long Date
+		lineageTag: bfedd6a1-2ea5-4e11-9ba9-b0ca7e45647c
+		summarizeBy: none
+		sourceColumn: sent_date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column was_opened
+		dataType: boolean
+		lineageTag: d3a36d71-b6f6-4e85-a7cc-85bd6b5c33d4
+		sourceColumn: was_opened
+
+	column was_clicked
+		dataType: boolean
+		lineageTag: d03c1d92-a7a6-4e67-a8bd-dd2527f03726
+		sourceColumn: was_clicked
+
+	column unsubscribed
+		dataType: boolean
+		lineageTag: 97c2bfa5-9449-4ebe-8c91-66aa5e2b2756
+		sourceColumn: unsubscribed
+
+	partition fct_email_event = m
+		mode: import
+		source =
+				let
+				    Source = marts{[Name = "FCT_EMAIL_EVENTS", Kind = "Table"]}[Data],
+				    Kept = Table.SelectColumns(Source, {"EMAIL_EVENT_ID", "CAMPAIGN_ID", "PERSON_ID", "SENT_DATE", "WAS_OPENED", "WAS_CLICKED", "UNSUBSCRIBED"}),
+				    Lower = Table.TransformColumnNames(Kept, Text.Lower),
+				    Keys = Table.ReplaceValue(Lower, null, -1, Replacer.ReplaceValue, {"person_id"})
+				in
+				    Keys
+

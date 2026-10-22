@@ -1,0 +1,10 @@
+/// PETS_CENTRAL.MARTS, the production warehouse's marts, read as the reporting role (PETS_REPORTER), which can read the marts and nothing else.
+expression marts =
+		let
+		    Source = Snowflake.Databases("zdnloqp-zb02546.snowflakecomputing.com", "PETS_WH", [Role = "PETS_REPORTER"]),
+		    Database = Source{[Name = "PETS_CENTRAL", Kind = "Database"]}[Data],
+		    Marts = Database{[Name = "MARTS", Kind = "Schema"]}[Data]
+		in
+		    Marts
+	lineageTag: 331722e5-c355-4fc0-9407-c5fe0378c8d8
+

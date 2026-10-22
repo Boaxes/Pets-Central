@@ -1,0 +1,42 @@
+version: 2
+
+sources:
+  - name: store_ops
+    description: >
+      The store operations system (Django on Postgres), loaded by pipeline/load_store_ops.py. Incremental tables
+      (customers, prices, animals, sales, sale lines) keep every version of a row; staging keeps the latest.
+    database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+    schema: RAW
+    loaded_at_field: _loaded_at
+    tables:
+      - {name: regions, identifier: STORE_OPS__STORES_REGION}
+      - {name: stores, identifier: STORE_OPS__STORES_STORE}
+      - {name: employees, identifier: STORE_OPS__STORES_EMPLOYEE}
+      - {name: departments, identifier: STORE_OPS__CATALOG_DEPARTMENT}
+      - {name: categories, identifier: STORE_OPS__CATALOG_CATEGORY}
+      - {name: brands, identifier: STORE_OPS__CATALOG_BRAND}
+      - {name: species, identifier: STORE_OPS__CATALOG_SPECIES}
+      - {name: products, identifier: STORE_OPS__CATALOG_PRODUCT}
+      - {name: product_prices, identifier: STORE_OPS__CATALOG_PRODUCTPRICE}
+      - {name: customers, identifier: STORE_OPS__CUSTOMERS_CUSTOMER}
+      - {name: animals, identifier: STORE_OPS__INVENTORY_ANIMAL}
+      - {name: animal_caretakers, identifier: STORE_OPS__INVENTORY_ANIMAL_CARETAKERS}
+      - {name: stock_levels, identifier: STORE_OPS__INVENTORY_STOCKLEVEL}
+      - {name: sales, identifier: STORE_OPS__SALES_SALE}
+      - {name: sale_lines, identifier: STORE_OPS__SALES_SALELINE}
+      - {name: returns, identifier: STORE_OPS__SALES_SALERETURN}
+      - {name: return_lines, identifier: STORE_OPS__SALES_SALERETURNLINE}
+
+  - name: loyalty
+    description: >
+      The loyalty platform's v2 API, loaded by pipeline/load_loyalty.py as raw JSON in RECORD, with RECORD_ID and
+      CHANGED_AT pulled out. Every version of a record is kept; staging keeps the latest.
+    database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+    schema: RAW
+    loaded_at_field: _loaded_at
+    tables:
+      - {name: members, identifier: LOYALTY__MEMBERS}
+      - {name: campaigns, identifier: LOYALTY__CAMPAIGNS}
+      - {name: points_transactions, identifier: LOYALTY__POINTS_TRANSACTIONS}
+      - {name: email_events, identifier: LOYALTY__EMAIL_EVENTS}
+      - {name: coupon_redemptions, identifier: LOYALTY__COUPON_REDEMPTIONS}

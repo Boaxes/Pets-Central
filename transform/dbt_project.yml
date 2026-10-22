@@ -1,0 +1,44 @@
+name: pets_central
+version: '1.0.0'
+profile: pets_central
+
+model-paths: ['models']
+macro-paths: ['macros']
+test-paths: ['tests']
+# The generator writes the matching truth file and campaign true lift next to the loyalty data.
+seed-paths: ['seeds', "../data/generated/{{ env_var('PETS_DATA_SIZE', 'full') }}"]
+target-path: target
+clean-targets: ['target', 'dbt_packages']
+
+vars:
+  # Domain typos fixed when normalizing emails. Others can be added as they are found.
+  email_domain_typos:
+    '.exmaple': '.example'
+    'gmial.com': 'gmail.com'
+    'hotmial.com': 'hotmail.com'
+    'yaho.com': 'yahoo.com'
+
+models:
+  pets_central:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: table
+    marts:
+      +schema: marts
+      +materialized: table
+    evaluation:
+      +schema: evaluation
+      +materialized: table
+      # The evaluation scores the work against the generator's truth files, which only exist where the data was
+      # generated: locally. CI and production set PETS_EVALUATION=false.
+      +enabled: "{{ env_var('PETS_EVALUATION', 'true') == 'true' }}"
+
+seeds:
+  pets_central:
+    +schema: evaluation
+    +enabled: "{{ env_var('PETS_EVALUATION', 'true') == 'true' }}"
+    loyalty_member_truth:
+      +column_types: {member_id: varchar, customer_id: number}

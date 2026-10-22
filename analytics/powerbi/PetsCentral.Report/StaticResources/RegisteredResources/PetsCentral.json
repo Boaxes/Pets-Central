@@ -1,0 +1,181 @@
+{
+  "name": "Pets Central (Salish)",
+  "dataColors": [
+    "#1f6f6a",
+    "#76a29d",
+    "#798382",
+    "#9fbdba",
+    "#505d5c"
+  ],
+  "background": "#f7f9f8",
+  "foreground": "#0f1f1e",
+  "tableAccent": "#1f6f6a",
+  "textClasses": {
+    "callout": {
+      "fontFace": "'IBM Plex Mono', Consolas, monospace",
+      "fontSize": 28,
+      "color": "#0f1f1e"
+    },
+    "title": {
+      "fontFace": "Archivo, 'Segoe UI', sans-serif",
+      "fontSize": 12,
+      "color": "#0f1f1e"
+    },
+    "header": {
+      "fontFace": "Archivo, 'Segoe UI', sans-serif",
+      "fontSize": 12,
+      "color": "#0f1f1e"
+    },
+    "label": {
+      "fontFace": "Archivo, 'Segoe UI', sans-serif",
+      "fontSize": 10,
+      "color": "#505d5c"
+    }
+  },
+  "visualStyles": {
+    "*": {
+      "*": {
+        "background": [
+          {
+            "show": true,
+            "color": {
+              "solid": {
+                "color": "#f7f9f8"
+              }
+            },
+            "transparency": 0
+          }
+        ],
+        "border": [
+          {
+            "show": true,
+            "color": {
+              "solid": {
+                "color": "#d9e2de"
+              }
+            },
+            "radius": 4,
+            "width": 1
+          }
+        ],
+        "dropShadow": [
+          {
+            "show": false
+          }
+        ],
+        "padding": [
+          {
+            "top": 10,
+            "bottom": 10,
+            "left": 14,
+            "right": 14
+          }
+        ],
+        "title": [
+          {
+            "show": true,
+            "fontFamily": "Archivo, 'Segoe UI', sans-serif",
+            "fontSize": 12,
+            "bold": true,
+            "fontColor": {
+              "solid": {
+                "color": "#0f1f1e"
+              }
+            },
+            "alignment": "left"
+          }
+        ],
+        "subTitle": [
+          {
+            "show": false
+          }
+        ],
+        "categoryAxis": [
+          {
+            "fontFamily": "Archivo, 'Segoe UI', sans-serif",
+            "fontSize": 10,
+            "labelColor": {
+              "solid": {
+                "color": "#505d5c"
+              }
+            },
+            "showAxisTitle": false,
+            "gridlineShow": false
+          }
+        ],
+        "valueAxis": [
+          {
+            "fontFamily": "'IBM Plex Mono', Consolas, monospace",
+            "fontSize": 9,
+            "labelColor": {
+              "solid": {
+                "color": "#505d5c"
+              }
+            },
+            "showAxisTitle": false,
+            "gridlineColor": {
+              "solid": {
+                "color": "#d0d4d3"
+              }
+            },
+            "gridlineThickness": 1
+          }
+        ],
+        "labels": [
+          {
+            "fontFamily": "'IBM Plex Mono', Consolas, monospace",
+            "fontSize": 10,
+            "color": {
+              "solid": {
+                "color": "#0f1f1e"
+              }
+            }
+          }
+        ],
+        "legend": [
+          {
+            "show": false
+          }
+        ]
+      }
+    },
+    "page": {
+      "*": {
+        "background": [
+          {
+            "color": {
+              "solid": {
+                "color": "#e9eeec"
+              }
+            },
+            "transparency": 0
+          }
+        ],
+        "outspace": [
+          {
+            "color": {
+              "solid": {
+                "color": "#e9eeec"
+              }
+            },
+            "transparency": 0
+          }
+        ]
+      }
+    },
+    "card": {
+      "*": {
+        "labels": [
+          {
+            "fontFamily": "'IBM Plex Mono', Consolas, monospace"
+          }
+        ],
+        "categoryLabels": [
+          {
+            "fontFamily": "Archivo, 'Segoe UI', sans-serif"
+          }
+        ]
+      }
+    }
+  }
+}

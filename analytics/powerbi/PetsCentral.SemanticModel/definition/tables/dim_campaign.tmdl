@@ -1,0 +1,95 @@
+/// One row per loyalty campaign, from MARTS.CAMPAIGN_PERFORMANCE, with its naive lift. Row -1 is No Campaign: sales without a coupon.
+table dim_campaign
+	lineageTag: 6daf1d86-0afe-4c72-99b4-e05064b9fca9
+
+	column campaign_id
+		dataType: double
+		isHidden
+		isKey
+		lineageTag: 08854f01-a175-4cc8-a3b7-a6016f41a153
+		summarizeBy: none
+		sourceColumn: campaign_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column campaign_name
+		dataType: string
+		lineageTag: 7e5b595a-6898-41e4-b5e8-5e1ec610cfe0
+		sourceColumn: campaign_name
+
+	column department
+		dataType: string
+		lineageTag: aef463e5-26d9-432e-9bf0-758a089ca481
+		sourceColumn: department
+
+	column channel
+		dataType: string
+		lineageTag: 849d61e7-0ed8-4108-85ce-a4a814b69e82
+		sourceColumn: channel
+
+	column discount_percent
+		dataType: int64
+		formatString: 0
+		lineageTag: f67ca067-53f2-4880-ac17-021f9205b169
+		summarizeBy: none
+		sourceColumn: discount_percent
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column starts_on
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		lineageTag: 07f566ea-57ff-45a5-a418-315e4ee7732c
+		summarizeBy: none
+		sourceColumn: starts_on
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column ends_on
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		lineageTag: 117069ef-b95e-4454-952c-ed65e6f9e905
+		summarizeBy: none
+		sourceColumn: ends_on
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column days_running
+		dataType: int64
+		formatString: 0
+		lineageTag: de95fa2f-8b08-4a0d-bef7-57383cb77314
+		summarizeBy: none
+		sourceColumn: days_running
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column naive_lift
+		dataType: double
+		formatString: 0.0%
+		lineageTag: 88ec447a-52f4-485b-983d-9ce84f2104a5
+		summarizeBy: none
+		sourceColumn: naive_lift
+
+	partition dim_campaign = m
+		mode: import
+		source =
+				let
+				    Source = marts{[Name = "CAMPAIGN_PERFORMANCE", Kind = "Table"]}[Data],
+				    Kept = Table.SelectColumns(Source, {"CAMPAIGN_ID", "CAMPAIGN_NAME", "DEPARTMENT_NAME", "CHANNEL", "DISCOUNT_PERCENT", "STARTS_ON", "ENDS_ON", "DAYS_RUNNING", "NAIVE_LIFT"}),
+				    Lower = Table.TransformColumnNames(Kept, Text.Lower),
+				    Renamed = Table.RenameColumns(Lower, {{"department_name", "department"}}),
+				    Typed = Table.TransformColumnTypes(Renamed, {{"discount_percent", Int64.Type}, {"days_running", Int64.Type}}),
+				    Labels = Table.TransformColumns(Typed, {{"channel", each Text.Proper(_), type text}}),
+				    NoCampaign = #table(type table [campaign_id = Int64.Type, campaign_name = text, department = text, channel = text, discount_percent = Int64.Type, starts_on = date, ends_on = date, days_running = Int64.Type, naive_lift = number], {{-1, "No Campaign", "None", "None", null, null, null, null, null}}),
+				    WithNone = Table.Combine({Labels, NoCampaign})
+				in
+				    WithNone
+

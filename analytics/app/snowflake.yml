@@ -1,0 +1,24 @@
+# The app as a Streamlit in Snowflake object, for the Snowflake CLI: `snow streamlit deploy --replace`, run from
+# this folder as the reporting role (deploy.yml does it on every merge). The role that deploys owns the app, and the
+# app's queries run as that role, so it can read the marts and nothing else.
+definition_version: 2
+entities:
+  analytics:
+    type: streamlit
+    identifier:
+      name: PETS_ANALYTICS
+      database: PETS_CENTRAL
+      schema: APPS
+    title: Pets Central Analytics
+    query_warehouse: PETS_WH
+    main_file: Overview.py
+    pages_dir: pages
+    artifacts:
+      - Overview.py
+      - data.py
+      - ask.py
+      - pages/
+      - semantic_model.yaml
+      - src: warehouse/environment.yml # kept out of this folder, where Streamlit Community Cloud would install it
+        dest: environment.yml
+      - .streamlit/config.toml

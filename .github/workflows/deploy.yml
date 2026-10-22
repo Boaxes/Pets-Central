@@ -1,0 +1,100 @@
+# Every merge to main deploys: merging a reviewed pull request is the approval. Terraform applies the Snowflake and
+# vendor stacks, the Rewards API's code is published, and the analytics app is published to Streamlit in Snowflake. Production on Azure (`infra/azure`, with its images and
+# the `manage` job's migrations) was deployed here until its screenshots were taken, then destroyed with destroy.yml.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy # One deploy at a time, never cancelled halfway.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # Signs in to Azure with OIDC; no cloud password exists.
+
+# Named explicitly, so every step runs with `set -eo pipefail`: a failing command piped into `tee` fails the step.
+defaults:
+  run:
+    shell: bash
+
+env:
+  ARM_USE_OIDC: 'true'
+  ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  terraform:
+    name: Terraform apply
+    runs-on: ubuntu-latest
+    env:
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_organization_name: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}
+      TF_VAR_account_name: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
+      TF_VAR_analyst_user: ${{ vars.SNOWFLAKE_ANALYST_USER }}
+      TF_VAR_demo_api_key: ${{ secrets.LOYALTY_DEMO_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - name: Write Terraform's Snowflake key
+        env:
+          KEY: ${{ secrets.SNOWFLAKE_TERRAFORM_PRIVATE_KEY }}
+        run: |
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/terraform.p8"
+          echo "TF_VAR_terraform_private_key_path=$RUNNER_TEMP/terraform.p8" >> "$GITHUB_ENV"
+      - name: Apply the Snowflake and vendor stacks
+        working-directory: infra
+        run: |
+          for stack in snowflake vendor; do
+            terraform -chdir=$stack init -input=false -backend-config=../backend.hcl -backend-config=key=$stack.tfstate
+            terraform -chdir=$stack apply -input=false -no-color -auto-approve | tee $stack/apply.txt
+            { echo "### $stack: terraform apply"; echo '```'; tail -n 40 $stack/apply.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          done
+
+  rewards-api:
+    name: Publish the Rewards API
+    needs: terraform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: func-pets-rewards-022e5b87
+          package: loyalty_api
+          sku: flexconsumption
+          remote-build: true # Azure installs requirements.txt itself, for Linux.
+
+  analytics:
+    name: Publish the analytics app
+    needs: terraform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install snowflake-cli==3.28.0
+      # Signed in as Terraform's user, switched to the reporting role: the role that deploys the app owns it, and
+      # the app's queries run as that role.
+      - name: Deploy to Streamlit in Snowflake
+        working-directory: analytics/app
+        env:
+          KEY: ${{ secrets.SNOWFLAKE_TERRAFORM_PRIVATE_KEY }}
+          ACCOUNT: ${{ vars.SNOWFLAKE_ACCOUNT }}
+        run: |
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/deploy.p8"
+          snow streamlit deploy --replace --temporary-connection --account "$ACCOUNT" --user PETS_TERRAFORM \
+            --authenticator SNOWFLAKE_JWT --private-key-file "$RUNNER_TEMP/deploy.p8" \
+            --role PETS_REPORTER --warehouse PETS_WH --database PETS_CENTRAL --schema APPS

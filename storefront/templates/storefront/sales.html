@@ -1,0 +1,100 @@
+{% extends 'storefront/base.html' %}
+{% load humanize %}
+{% block title %}Sales{% endblock %}
+{% block content %}
+<h1>{{ page.title }}</h1>
+{% include 'storefront/tabs/tab_links.html' %}
+{% if intro %}<p class="muted">{{ intro }}</p>{% endif %}
+
+{% if tab.key == 'new' %}
+    <h2>Look up a product</h2>
+    <form method="get" action="{{ request.path }}" class="toolbar"
+          hx-get="{{ request.path }}" hx-target="#found" hx-select="#found" hx-swap="outerHTML"
+          hx-trigger="submit, input changed delay:300ms from:input[name=find]">
+        <input type="hidden" name="tab" value="new">
+        <input type="search" name="find" value="{{ find }}" placeholder="Product name or SKU" aria-label="Look up a product">
+        <button>Look up</button>
+    </form>
+    <div id="found">
+    {% if find %}
+    <table class="wide">
+        <tr><th>SKU</th><th>Product</th><th class="num">Price</th><th class="num">In stock</th></tr>
+        {% for s in found %}<tr><td>{{ s.product.sku }}</td><td>{{ s.product.name }}</td><td class="num">${{ s.price|floatformat:2|intcomma }}</td><td class="num">{{ s.quantity_on_hand }}</td></tr>
+        {% empty %}<tr><td colspan="4">No products this store carries match "{{ find }}".</td></tr>{% endfor %}
+    </table>
+    {% endif %}
+    </div>
+
+    <h2>Sale</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <p>{{ form.customer.label_tag }} {{ form.customer }} {{ form.customer.errors }}</p>
+        <p>{{ form.employee.label_tag }} {{ form.employee }} {{ form.employee.errors }}</p>
+        <table>
+            <tr><th>SKU</th><th>Quantity</th></tr>
+            {% for sku, qty in form.line_fields %}<tr><td>{{ sku }}{{ sku.errors }}</td><td>{{ qty }}{{ qty.errors }}</td></tr>{% endfor %}
+        </table>
+        <p>{{ form.animals.label_tag }} {{ form.animals }} <span class="helptext">{{ form.animals.help_text }}</span> {{ form.animals.errors }}</p>
+        <button>Record sale</button>
+    </form>
+
+{% else %}
+    {% include 'storefront/tabs/picker.html' %}
+    {% if sale %}
+        <h2>Sale {{ sale.receipt_number }}</h2>
+        <table class="keyvalue">
+            <tr><th>Sold</th><td>{{ sale.sold_at|date:"Y-m-d H:i" }} ({{ request.store.time_zone }})</td></tr>
+            <tr><th>Customer</th><td>{{ customer_name }}</td></tr>
+            <tr><th>Cashier</th><td>{{ sale.employee|default:"" }}</td></tr>
+            <tr><th>Channel</th><td>{{ sale.get_channel_display }}</td></tr>
+            <tr><th>Status</th><td>{{ sale.get_status_display }}{% if sale.cancelled_at %} ({{ sale.cancelled_at|date:"Y-m-d H:i" }}){% endif %}</td></tr>
+            {% if sale.coupon_code %}<tr><th>Coupon</th><td>{{ sale.coupon_code }}</td></tr>{% endif %}
+            <tr><th>Total</th><td>${{ total|floatformat:2|intcomma }}</td></tr>
+        </table>
+
+        {% if tab.key == 'return' %}<form method="post">{% csrf_token %}{% endif %}
+        <table class="wide">
+            <tr>
+                <th class="num">Line</th><th>SKU</th><th>Product</th><th class="num">Qty</th><th class="num">Unit price</th>
+                <th class="num">Discount</th><th class="num">Line total</th><th class="num">Returned</th>
+                {% if tab.key == 'return' %}<th>Return qty</th><th>Restock</th>{% endif %}
+            </tr>
+            {% for line, returned, remaining in lines %}
+            <tr>
+                <td class="num">{{ line.line_number }}</td><td>{{ line.product.sku }}</td>
+                <td>{{ line.product.name }}{% if line.animal %} (animal #{{ line.animal_id }}{% if line.animal.name %}, {{ line.animal.name }}{% endif %}){% endif %}</td>
+                <td class="num">{{ line.quantity }}</td><td class="num">${{ line.unit_price|intcomma }}</td>
+                <td class="num">{% if line.discount_amount %}-${{ line.discount_amount|intcomma }}{% endif %}</td>
+                <td class="num">${{ line.line_total|floatformat:2|intcomma }}</td><td class="num">{{ returned|default:"" }}</td>
+                {% if tab.key == 'return' %}
+                <td>{% if remaining %}<input type="number" name="return_{{ line.pk }}" min="0" max="{{ remaining }}" value="0" aria-label="Quantity to return">{% endif %}</td>
+                <td>{% if remaining and not line.animal %}<input type="checkbox" name="restock_{{ line.pk }}" checked aria-label="Restock">{% endif %}</td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </table>
+
+        {% if tab.key == 'return' %}
+            {% if sale.status == 'completed' %}
+            <p><label for="reason">Reason</label>
+                <select id="reason" name="reason">{% for value, label in reasons %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></p>
+            <button>Record return</button>
+            {% else %}<p>Cancelled sales can't be returned.</p>{% endif %}
+            </form>
+        {% elif tab.key == 'cancel' %}
+            {% if sale.status == 'completed' %}
+            <form method="post">{% csrf_token %}<button class="danger">Cancel sale {{ sale.receipt_number }}</button></form>
+            {% else %}<p>This sale is already cancelled.</p>{% endif %}
+        {% elif returns %}
+            <h3>Returns</h3>
+            <ul>
+                {% for r in returns %}
+                <li>{{ r.return_number }}, {{ r.returned_at|date:"Y-m-d" }} at {{ r.store.store_code }} ({{ r.get_reason_display|lower }}):
+                    {% for rl in r.lines.all %}{{ rl.quantity }} x {{ rl.sale_line.product.sku }}, refund ${{ rl.refund_amount }}{% if not forloop.last %}; {% endif %}{% endfor %}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endif %}
+{% endif %}
+{% endblock %}

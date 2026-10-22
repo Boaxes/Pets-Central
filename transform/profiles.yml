@@ -1,0 +1,15 @@
+# Connection settings come from the project's .env (run dbt through `uv run dotenv -f ../.env run -- dbt ...`).
+pets_central:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_DBT_USER') }}"
+      role: "{{ env_var('SNOWFLAKE_DBT_ROLE') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_DBT_PRIVATE_KEY_PATH') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      schema: analytics
+      threads: 4
+      query_tag: dbt

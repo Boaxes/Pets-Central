@@ -1,0 +1,10 @@
+[project]
+name = "pets-central-transform"
+version = "0.1.0"
+description = "dbt models that clean, match and model Pets Central's warehouse data in Snowflake"
+requires-python = ">=3.13"
+dependencies = [
+    "dbt-core>=1.12.6",
+    "dbt-snowflake>=1.12.3",
+    "python-dotenv[cli]>=1.2.4",
+]

@@ -1,0 +1,8 @@
+# Packages for Streamlit in Snowflake (from Snowflake's Anaconda channel). snowflake.yml deploys this file beside
+# Overview.py; it lives here so Streamlit Community Cloud installs requirements.txt instead.
+name: sf_env
+channels:
+  - snowflake
+dependencies:
+  - snowflake-snowpark-python
+  - pandas

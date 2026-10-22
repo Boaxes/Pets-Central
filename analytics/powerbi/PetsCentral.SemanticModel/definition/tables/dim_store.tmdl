@@ -1,0 +1,128 @@
+/// One row per store, with region, format and history, from MARTS.DIM_STORES.
+table dim_store
+	lineageTag: deef8751-b782-446e-9bc7-ae72e3acba9a
+
+	measure 'Tile Column' = MIN ( dim_store[tile_x] )
+		formatString: 0
+		isHidden
+		displayFolder: Map
+		lineageTag: 736f7570-2387-4865-ae2c-c2e5baacc5ca
+
+	/// Negative, so row 0 is at the top of the scatter chart.
+	measure 'Tile Row' = - MIN ( dim_store[tile_y] )
+		formatString: 0
+		isHidden
+		displayFolder: Map
+		lineageTag: d2e0f8e8-0e55-4bdd-9908-ce7291b323a2
+
+	/// The store a page is filtered to, for the Store Detail header.
+	measure 'Selected Store' = IF ( HASONEVALUE ( dim_store[store_name] ), VALUES ( dim_store[store_name] ) & "  ·  " & VALUES ( dim_store[city] ) & ", " & VALUES ( dim_store[state] ), "All Stores" )
+		displayFolder: Labels
+		lineageTag: 9d598dc6-63b7-450b-b269-c6231d10e08c
+
+	column store_id
+		dataType: double
+		isHidden
+		isKey
+		lineageTag: 08f55e80-8134-44ad-a25f-8a35caa000a3
+		summarizeBy: none
+		sourceColumn: store_id
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column store_code
+		dataType: string
+		lineageTag: 296adc94-a703-4eb5-aaa9-48ee1b7abe11
+		sourceColumn: store_code
+
+	column store_name
+		dataType: string
+		lineageTag: f82d83c9-6d4b-4c66-abcc-dd625013175f
+		sourceColumn: store_name
+
+	column city
+		dataType: string
+		lineageTag: 2d98c583-a26b-4994-8cbb-903dbb54592b
+		sourceColumn: city
+
+	column state
+		dataType: string
+		lineageTag: 299397fc-4e4e-4268-a17e-72f333dcb384
+		dataCategory: StateOrProvince
+		sourceColumn: state
+
+	column region
+		dataType: string
+		lineageTag: 7a446ec1-ce31-4cb6-ab82-8ff8650ed782
+		sourceColumn: region
+
+	column format
+		dataType: string
+		lineageTag: 1f926b2b-98ce-448e-ba28-8dff47d939c6
+		sourceColumn: format
+
+	column original_chain
+		dataType: string
+		lineageTag: 1b065fec-4b56-4dcd-96ce-2ece8b83ac60
+		sourceColumn: original_chain
+
+	column is_acquired
+		dataType: boolean
+		lineageTag: 2ccbcb4d-e153-4ce3-afba-3cbc7819f478
+		sourceColumn: is_acquired
+
+	column opened_on
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		lineageTag: 58204605-ca51-4fd9-9dd4-d9cbe0daf161
+		summarizeBy: none
+		sourceColumn: opened_on
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_open
+		dataType: boolean
+		lineageTag: a59d3a34-c806-49d0-94ec-454aed909796
+		sourceColumn: is_open
+
+	/// Column of the state's square on the tile grid map.
+	column tile_x
+		dataType: int64
+		isHidden
+		lineageTag: 3286846d-0ad1-494c-b1b6-71eea2905abe
+		summarizeBy: none
+		sourceColumn: tile_x
+
+	/// Row of the state's square on the tile grid map (0 at the top).
+	column tile_y
+		dataType: int64
+		isHidden
+		lineageTag: 614cbdb1-49f3-4f60-84e1-6a2700bbb5af
+		summarizeBy: none
+		sourceColumn: tile_y
+
+	partition dim_store = m
+		mode: import
+		source =
+				let
+				    Source = marts{[Name = "DIM_STORES", Kind = "Table"]}[Data],
+				    Kept = Table.SelectColumns(Source, {"STORE_ID", "STORE_CODE", "STORE_NAME", "CITY", "STATE", "REGION_NAME", "STORE_FORMAT", "ORIGINAL_CHAIN", "IS_ACQUIRED", "OPENED_ON", "IS_OPEN"}),
+				    Lower = Table.TransformColumnNames(Kept, Text.Lower),
+				    Renamed = Table.RenameColumns(Lower, {{"region_name", "region"}, {"store_format", "format"}}),
+				    Labels = Table.TransformColumns(Renamed, {{"format", each Text.Proper(_), type text}, {"original_chain", each Text.Proper(Text.Replace(_, "_", " ")), type text}}),
+				    // Each state's square on a tile grid map (column, row), the newsroom layout: states sit roughly where they are.
+				    Tiles = #table(type table [tile_state = text, tile_x = Int64.Type, tile_y = Int64.Type], {
+				        {"AK", 0, 0}, {"ME", 11, 0}, {"VT", 10, 1}, {"NH", 11, 1},
+				        {"WA", 1, 2}, {"ID", 2, 2}, {"MT", 3, 2}, {"ND", 4, 2}, {"MN", 5, 2}, {"IL", 6, 2}, {"WI", 7, 2}, {"MI", 8, 2}, {"NY", 9, 2}, {"RI", 10, 2}, {"MA", 11, 2},
+				        {"OR", 1, 3}, {"NV", 2, 3}, {"WY", 3, 3}, {"SD", 4, 3}, {"IA", 5, 3}, {"IN", 6, 3}, {"OH", 7, 3}, {"PA", 8, 3}, {"NJ", 9, 3}, {"CT", 10, 3},
+				        {"CA", 1, 4}, {"UT", 2, 4}, {"CO", 3, 4}, {"NE", 4, 4}, {"MO", 5, 4}, {"KY", 6, 4}, {"WV", 7, 4}, {"VA", 8, 4}, {"MD", 9, 4}, {"DE", 10, 4},
+				        {"AZ", 2, 5}, {"NM", 3, 5}, {"KS", 4, 5}, {"AR", 5, 5}, {"TN", 6, 5}, {"NC", 7, 5}, {"SC", 8, 5}, {"DC", 9, 5},
+				        {"OK", 4, 6}, {"LA", 5, 6}, {"MS", 6, 6}, {"AL", 7, 6}, {"GA", 8, 6},
+				        {"HI", 0, 7}, {"TX", 4, 7}, {"FL", 9, 7}}),
+				    Joined = Table.NestedJoin(Labels, {"state"}, Tiles, {"tile_state"}, "tile", JoinKind.LeftOuter),
+				    Expanded = Table.ExpandTableColumn(Joined, "tile", {"tile_x", "tile_y"})
+				in
+				    Expanded
+

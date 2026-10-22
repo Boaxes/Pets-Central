@@ -1,0 +1,7 @@
+# Packages for Streamlit Community Cloud (the demo) and Streamlit in Snowflake's container runtime.
+streamlit
+pandas
+sqlalchemy
+psycopg[binary]
+anthropic
+requests

@@ -1,0 +1,19 @@
+# The store app's image: the Django project only.
+**/.venv
+**/__pycache__
+.git
+.github
+.env
+analytics/
+data/
+docs/
+infra/
+# The Rewards API is its own image, but the data generator writes its database from this schema.
+loyalty_api/**
+!loyalty_api/loyalty/schema.sql
+orchestration/
+transform/
+staticfiles/
+scripts/
+*.md
+!README.md

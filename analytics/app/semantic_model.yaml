@@ -1,0 +1,157 @@
+# The marts as Cortex Analyst sees them (and Claude, on the stand-in). Cancelled sales are in the fact tables; most
+# questions mean completed sales, so the completed_sales filters say how to leave them out.
+name: pets_central
+description: >
+  Pets Central, a national chain of pet stores across US regions, with a store system and a separate loyalty
+  program. Money is in US dollars. Dates are each store's local date.
+
+tables:
+  - name: sales
+    description: One row per sale (a receipt), from the store system.
+    base_table: {database: PETS_CENTRAL, schema: MARTS, table: FCT_SALES}
+    primary_key: {columns: [sale_id]}
+    dimensions:
+      - {name: sale_id, expr: sale_id, data_type: number, unique: true}
+      - {name: store_id, expr: store_id, data_type: number}
+      - {name: person_id, expr: person_id, data_type: number, description: The buyer; null for guests.}
+      - {name: channel, expr: channel, data_type: varchar, description: Where the sale was made, such as in store.}
+      - {name: is_guest, expr: is_guest, data_type: boolean, description: Bought without a customer record.}
+      - {name: is_member, expr: is_member, data_type: boolean, description: The buyer is a matched loyalty member.}
+      - {name: is_cancelled, expr: is_cancelled, data_type: boolean}
+    time_dimensions:
+      - {name: sale_date, expr: sale_date, data_type: date, description: The store's local date of the sale.}
+    measures:
+      - {name: sale_count, expr: sale_id, data_type: number, default_aggregation: count}
+      - {name: net_amount, expr: net_amount, data_type: number, default_aggregation: sum,
+         description: Revenue after discounts.}
+      - {name: gross_margin, expr: gross_margin, data_type: number, default_aggregation: sum,
+         description: Net amount minus cost.}
+      - {name: discount_amount, expr: discount_amount, data_type: number, default_aggregation: sum}
+      - {name: item_count, expr: item_count, data_type: number, default_aggregation: sum}
+    filters:
+      - {name: completed_sales, expr: not is_cancelled, description: Leaves out cancelled sales.}
+
+  - name: sale_lines
+    description: One row per line on a sale. Use for anything by product, category or department.
+    base_table: {database: PETS_CENTRAL, schema: MARTS, table: FCT_SALE_LINES}
+    primary_key: {columns: [sale_line_id]}
+    dimensions:
+      - {name: sale_line_id, expr: sale_line_id, data_type: number, unique: true}
+      - {name: sale_id, expr: sale_id, data_type: number}
+      - {name: store_id, expr: store_id, data_type: number}
+      - {name: product_id, expr: product_id, data_type: number}
+      - {name: person_id, expr: person_id, data_type: number}
+      - {name: is_member, expr: is_member, data_type: boolean}
+      - {name: is_cancelled, expr: is_cancelled, data_type: boolean}
+    time_dimensions:
+      - {name: sale_date, expr: sale_date, data_type: date}
+    measures:
+      - {name: quantity, expr: quantity, data_type: number, default_aggregation: sum}
+      - {name: net_amount, expr: net_amount, data_type: number, default_aggregation: sum}
+      - {name: gross_margin, expr: gross_margin, data_type: number, default_aggregation: sum}
+      - {name: cost_amount, expr: cost_amount, data_type: number, default_aggregation: sum}
+    filters:
+      - {name: completed_sales, expr: not is_cancelled}
+
+  - name: stores
+    description: Stores, with region and format. Some joined the chain when it bought Critter Corner.
+    base_table: {database: PETS_CENTRAL, schema: MARTS, table: DIM_STORES}
+    primary_key: {columns: [store_id]}
+    dimensions:
+      - {name: store_id, expr: store_id, data_type: number, unique: true}
+      - {name: store_code, expr: store_code, data_type: varchar}
+      - {name: store_name, expr: store_name, data_type: varchar}
+      - {name: city, expr: city, data_type: varchar}
+      - {name: state, expr: state, data_type: varchar}
+      - {name: region_name, expr: region_name, data_type: varchar}
+      - {name: store_format, expr: store_format, data_type: varchar}
+      - {name: is_acquired, expr: is_acquired, data_type: boolean, description: Came from the Critter Corner purchase.}
+      - {name: is_open, expr: is_open, data_type: boolean}
+    time_dimensions:
+      - {name: opened_on, expr: opened_on, data_type: date}
+
+  - name: products
+    description: Products, with category, department and brand. Live animals have a species.
+    base_table: {database: PETS_CENTRAL, schema: MARTS, table: DIM_PRODUCTS}
+    primary_key: {columns: [product_id]}
+    dimensions:
+      - {name: product_id, expr: product_id, data_type: number, unique: true}
+      - {name: product_name, expr: product_name, data_type: varchar}
+      - {name: category_name, expr: category_name, data_type: varchar}
+      - {name: department_name, expr: department_name, data_type: varchar}
+      - {name: brand_name, expr: brand_name, data_type: varchar}
+      - {name: is_house_brand, expr: is_house_brand, data_type: boolean}
+      - {name: is_live_animal, expr: is_live_animal, data_type: boolean}
+      - {name: species_common_name, expr: species_common_name, data_type: varchar}
+    measures:
+      - {name: current_list_price, expr: current_list_price, data_type: number, default_aggregation: avg}
+
+  - name: customers
+    description: >
+      One row per person: duplicate customer records merged, with their loyalty membership if one was matched,
+      and their purchase history. Guests are not people.
+    base_table: {database: PETS_CENTRAL, schema: MARTS, table: DIM_CUSTOMERS}
+    primary_key: {columns: [person_id]}
+    dimensions:
+      - {name: person_id, expr: person_id, data_type: number, unique: true}
+      - {name: customer_type, expr: customer_type, data_type: varchar,
+         description: "never purchased, one-time or repeat"}
+      - {name: is_loyalty_member, expr: is_loyalty_member, data_type: boolean}
+      - {name: loyalty_tier, expr: loyalty_tier, data_type: varchar}
+      - {name: loyalty_match_method, expr: loyalty_match_method, data_type: varchar,
+         description: How the loyalty member was matched to the store's customer records.}
+      - {name: home_store_id, expr: home_store_id, data_type: number}
+    measures:
+      - {name: people, expr: person_id, data_type: number, default_aggregation: count}
+      - {name: purchases, expr: purchases, data_type: number, default_aggregation: sum}
+      - {name: lifetime_net_amount, expr: lifetime_net_amount, data_type: number, default_aggregation: sum}
+      - {name: points_balance, expr: points_balance, data_type: number, default_aggregation: sum}
+
+  - name: campaigns
+    description: >
+      One row per loyalty campaign, with its emails, coupon redemptions and naive lift (the department's daily
+      sales during the campaign against the same number of days before it).
+    base_table: {database: PETS_CENTRAL, schema: MARTS, table: CAMPAIGN_PERFORMANCE}
+    primary_key: {columns: [campaign_id]}
+    dimensions:
+      - {name: campaign_id, expr: campaign_id, data_type: number, unique: true}
+      - {name: campaign_name, expr: campaign_name, data_type: varchar}
+      - {name: department_name, expr: department_name, data_type: varchar}
+      - {name: channel, expr: channel, data_type: varchar}
+    time_dimensions:
+      - {name: starts_on, expr: starts_on, data_type: date}
+      - {name: ends_on, expr: ends_on, data_type: date}
+    measures:
+      - {name: discount_percent, expr: discount_percent, data_type: number, default_aggregation: avg}
+      - {name: emails_sent, expr: emails_sent, data_type: number, default_aggregation: sum}
+      - {name: open_rate, expr: open_rate, data_type: number, default_aggregation: avg}
+      - {name: click_rate, expr: click_rate, data_type: number, default_aggregation: avg}
+      - {name: redemptions, expr: redemptions, data_type: number, default_aggregation: sum}
+      - {name: discount_given, expr: discount_given, data_type: number, default_aggregation: sum}
+      - {name: naive_lift, expr: naive_lift, data_type: number, default_aggregation: avg}
+
+relationships:
+  - name: sales_to_stores
+    left_table: sales
+    right_table: stores
+    relationship_columns: [{left_column: store_id, right_column: store_id}]
+    join_type: left_outer
+    relationship_type: many_to_one
+  - name: sales_to_customers
+    left_table: sales
+    right_table: customers
+    relationship_columns: [{left_column: person_id, right_column: person_id}]
+    join_type: left_outer
+    relationship_type: many_to_one
+  - name: sale_lines_to_stores
+    left_table: sale_lines
+    right_table: stores
+    relationship_columns: [{left_column: store_id, right_column: store_id}]
+    join_type: left_outer
+    relationship_type: many_to_one
+  - name: sale_lines_to_products
+    left_table: sale_lines
+    right_table: products
+    relationship_columns: [{left_column: product_id, right_column: product_id}]
+    join_type: left_outer
+    relationship_type: many_to_one

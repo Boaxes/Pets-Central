@@ -1,0 +1,154 @@
+/// One row per day, October 2023 to December 2026, from MARTS.DIM_DATE. The model's date table.
+table dim_date
+	lineageTag: df07dde7-8c03-4f14-9337-649ac1ac5289
+	dataCategory: Time
+
+	column date
+		dataType: dateTime
+		isUnique
+		isKey
+		formatString: yyyy-mm-dd
+		lineageTag: 4bfe3855-4b27-40e2-94df-6953f1059e6c
+		summarizeBy: none
+		sourceColumn: date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column year
+		dataType: int64
+		formatString: 0
+		lineageTag: 8dfbc145-aba6-4089-be77-c11bb10fc6c6
+		summarizeBy: none
+		sourceColumn: year
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column quarter
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: af6eae59-50f1-4bb6-ad1a-aed8f2b4173d
+		summarizeBy: none
+		sourceColumn: quarter
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column quarter_name
+		dataType: string
+		lineageTag: a698eaed-e356-47ec-8d63-080211bfbb13
+		sourceColumn: quarter_name
+		sortByColumn: quarter
+
+	column month
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 68fa8ad9-bba4-4f49-baf5-3e980e8e7e4e
+		summarizeBy: none
+		sourceColumn: month
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column month_name
+		dataType: string
+		lineageTag: ffc5c150-8704-4fee-8c63-fc5f3fa110c1
+		sourceColumn: month_name
+		sortByColumn: month
+
+	column month_start
+		dataType: dateTime
+		formatString: mmm yyyy
+		lineageTag: 4b43633a-c112-4820-914d-8ea44fd0bf31
+		summarizeBy: none
+		sourceColumn: month_start
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column year_month
+		dataType: string
+		lineageTag: becf0c33-24b3-4f8c-9ac1-316d345c0e4a
+		sourceColumn: year_month
+		sortByColumn: month_start
+
+	column day_of_week
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: ed3c63e6-b2e5-479f-b22b-642bfded9e71
+		summarizeBy: none
+		sourceColumn: day_of_week
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column day_name
+		dataType: string
+		lineageTag: 7133e41e-2ba6-4bb1-812b-fdbc803b974d
+		sourceColumn: day_name
+		sortByColumn: day_of_week
+
+	column is_weekend
+		dataType: boolean
+		lineageTag: dd28c543-1165-4cb2-b9da-02628ece4590
+		sourceColumn: is_weekend
+
+	/// Every day up to the last day of normal trading, holidays included. Leaves out the two sales typed into the store app on 2026-10-19.
+	column is_full_trading_day =
+			VAR LastNormalDay = MAXX ( FILTER ( dim_date, dim_date[has_normal_volume] ), dim_date[date] )
+			RETURN dim_date[date] <= LastNormalDay
+		dataType: boolean
+		isHidden
+		lineageTag: dde00a4b-cf53-4a33-a3d2-46fd3503726c
+
+	/// At least 100 sale lines that day. Holidays fall below it, so this only marks where the generated data ends.
+	column has_normal_volume = CALCULATE ( COUNTROWS ( fct_sale_line ) ) >= 100
+		isHidden
+		lineageTag: 5e211f05-011a-4e05-87a4-af3f29e80a65
+		summarizeBy: none
+
+	hierarchy calendar
+		lineageTag: 3166c676-6342-4642-8b44-c7e78644899e
+
+		level Year
+			lineageTag: 14871397-3e3c-48de-a281-ed6be2b791b7
+			column: year
+
+		level Quarter
+			lineageTag: 8717bb5f-518b-49b6-941b-cece8c740109
+			column: quarter_name
+
+		level Month
+			lineageTag: 4104445b-ff6a-4941-beef-8f462eaa96b7
+			column: month_name
+
+		level Day
+			lineageTag: 4198bdf0-330e-4777-a7d6-9177e2c36e03
+			column: date
+
+	partition dim_date = m
+		mode: import
+		source =
+				let
+				    Source = marts{[Name = "DIM_DATE", Kind = "Table"]}[Data],
+				    InRange = Table.SelectRows(Source, each [DATE_DAY] >= #date(2023, 10, 1) and [DATE_DAY] <= #date(2026, 12, 31)),
+				    Kept = Table.SelectColumns(InRange, {"DATE_DAY", "YEAR", "QUARTER", "MONTH", "MONTH_NAME", "MONTH_START", "DAY_NAME", "DAY_OF_WEEK", "IS_WEEKEND"}),
+				    Lower = Table.TransformColumnNames(Kept, Text.Lower),
+				    Renamed = Table.RenameColumns(Lower, {{"date_day", "date"}}),
+				    // Snowflake's NUMBER arrives as a decimal; these are whole numbers.
+				    Typed = Table.TransformColumnTypes(Renamed, {{"year", Int64.Type}, {"quarter", Int64.Type}, {"month", Int64.Type}, {"day_of_week", Int64.Type}}),
+				    Quarter = Table.AddColumn(Typed, "quarter_name", each "Q" & Text.From([quarter]), type text),
+				    YearMonth = Table.AddColumn(Quarter, "year_month", each Date.ToText([month_start], "MMM yyyy"), type text)
+				in
+				    YearMonth
+

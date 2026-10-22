@@ -1,0 +1,20 @@
+{% extends 'storefront/base.html' %}
+{% block title %}{{ policy.title }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'policies' %}">All policies</a></p>
+<div class="policy">
+    <h1>{{ policy.title }}</h1>
+    <table class="keyvalue">
+        <tr><th>Category</th><td>{{ policy.get_category_display }}</td></tr>
+        <tr><th>Version</th><td>{{ policy.version }}, effective {{ policy.effective_on|date:"F j, Y" }}</td></tr>
+        <tr><th>Owner</th><td>{{ policy.owner }}</td></tr>
+        <tr><th>Applies to</th><td>{% if policy.states %}{{ policy.states|join:", " }} stores only{% else %}All stores{% endif %}</td></tr>
+        <tr><th>Summary</th><td>{{ policy.summary }}</td></tr>
+    </table>
+    <p><strong>Sections:</strong>
+        {% for t in toc %}{% for s in t.children %}<a href="#{{ s.id }}">{{ s.name }}</a>{% if not forloop.last %} &middot; {% endif %}{% endfor %}{% if not t.children %}<a href="#{{ t.id }}">{{ t.name }}</a>{% endif %}{% if not forloop.last %} &middot; {% endif %}{% endfor %}
+    </p>
+    <hr>
+    {{ html|safe }}
+</div>
+{% endblock %}
