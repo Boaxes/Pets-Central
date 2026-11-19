@@ -29,9 +29,38 @@ def query(sql):
     if IN_SNOWFLAKE:
         frame = SESSION.sql(sql).to_pandas()
     else:
-        frame = st.connection('marts').query(sql, ttl=0)
+        frame = _query_marts(sql)
     frame.columns = [column.lower() for column in frame.columns]  # Snowflake returns them upper case
     return frame
+
+
+def _query_marts(sql):
+    """Runs a query on the `marts` connection, reconnecting once if the connection has gone stale.
+
+    The demo's Postgres (Neon) closes connections that sit idle, and the pool can hand back a dead one, so the
+    first query after a quiet spell fails ("Can't reconnect until invalid transaction is rolled back"). A fresh
+    connection then works, so on a connection error the connection is reset and the query tried once more. Any
+    other error, such as bad SQL, is raised as it is.
+    """
+    try:
+        return st.connection('marts').query(sql, ttl=0)
+    except Exception as error:
+        if not _is_connection_error(error):
+            raise
+        st.connection('marts').reset()
+        return st.connection('marts').query(sql, ttl=0)
+
+
+def _is_connection_error(error):
+    """True if SQLAlchemy lost the connection. pandas wraps the error ("Execution failed on sql ..."), so this
+    looks through the whole chain of causes."""
+    from sqlalchemy import exc  # Only needed outside Snowflake, where sqlalchemy is installed.
+
+    while error is not None:
+        if isinstance(error, (exc.OperationalError, exc.InterfaceError, exc.PendingRollbackError)):
+            return True
+        error = error.__cause__ or error.__context__
+    return False
 
 
 def quoted(value):
