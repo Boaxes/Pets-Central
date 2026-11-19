@@ -2,6 +2,7 @@
 pages/. Runs in Streamlit in Snowflake (with Cortex Analyst) and, as the demo, on Streamlit Community Cloud (with
 Claude)."""
 
+import pandas as pd
 import streamlit as st
 
 from data import query, titled
@@ -30,17 +31,23 @@ cols[3].metric('Average Sale', f'${totals.revenue / totals.sales:,.2f}')
 cols[4].metric('Stores', f'{totals.stores:,.0f}')
 st.caption(f'From {totals.first_day} to {totals.last_day}.')
 
-monthly = titled(query('''
+# Full months only: a month still in progress would look like revenue collapsing at the end of the line.
+last_day = pd.Timestamp(totals.last_day)
+cutoff = (last_day + pd.Timedelta(days=1)).replace(day=1)  # the first day of the first month not yet complete
+monthly = titled(query(f'''
     select date_trunc('month', sale_date) as month,
            sum(net_amount)::float as revenue,
            sum(gross_margin)::float as gross_margin
     from marts.fct_sales
-    where not is_cancelled
+    where not is_cancelled and sale_date < '{cutoff:%Y-%m-%d}'
     group by 1
     order by 1
 '''))
 st.subheader('Revenue by Month')
 st.line_chart(monthly, x='Month', y=['Revenue', 'Gross Margin'])
+if not last_day.is_month_end:
+    st.caption(f'Full months only: {last_day:%B %Y} has data only through {last_day:%B} {last_day.day}, '
+               'so it is left out.')
 
 left, right = st.columns(2)
 left.subheader('Revenue by Channel')

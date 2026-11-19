@@ -44,6 +44,9 @@ monthly = titled(query(f'''
 '''))
 monthly['Month'] = pd.to_datetime(monthly['Month']).dt.strftime('%b')  # one year: bars labeled by month
 st.bar_chart(monthly, x='Month', y='Revenue', sort=False)
+last_day = pd.Timestamp(query('select max(sale_date) as last_day from marts.fct_sales').last_day[0])
+if last_day.year == year and not last_day.is_month_end:
+    st.caption(f'{last_day:%B} is a partial month: the data ends on {last_day:%B} {last_day.day}, {last_day.year}.')
 
 left, right = st.columns(2)
 left.subheader('By Department')
